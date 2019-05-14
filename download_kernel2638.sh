@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # wget download URL
-URL=https://mirrors.edge.kernel.org/pub/linux/kernel/v2.6/linux-2.6.33.7.tar.xz
+URL=https://mirrors.edge.kernel.org/pub/linux/kernel/v2.6/linux-2.6.38.tar.xz
 
 # wget log file
 LOGFILE=wget.log

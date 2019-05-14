@@ -103,7 +103,7 @@ u64 rdtsc(void)
 {
 	unsigned a, d;
 	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-	return (((u64)a) | (((u64)d) << 32));
+	return ( ((u64)a) | ( ((u64)d) << 32 ) );
 }
 
 

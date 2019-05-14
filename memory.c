@@ -107,12 +107,12 @@ unsigned memory_okw_overhead_copy[3 /* from */][3 /* to, 2 = uncached+wb */][PCM
 /**
  * DDR version
  */
-unsigned memory_ddr_version = 1;
+unsigned memory_ddr_version = 3;
 
 /**
  * DDR rating
  */
-unsigned memory_ddr_rating = 333;
+unsigned memory_ddr_rating = 1867;
 
 /**
  * Memory bus speed
@@ -132,9 +132,9 @@ unsigned memory_row_width = 128;
 /**
  * Memory timing information
  */
-unsigned memory_tRCD   =  3;
-unsigned memory_tRP    =  3;
-unsigned memory_tCL10  = 25;	/* x 10 */
+unsigned memory_tRCD   =  3; 
+unsigned memory_tRP    =  3; 
+unsigned memory_tCL10  = 11; //1.071 former 25	/* x 10 */
 
 
 /**

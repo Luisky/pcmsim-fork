@@ -1,0 +1,27 @@
+{
+        "configurations": [
+                {
+                        "name": "Linux",
+                        "includePath": [
+                                "${workspaceFolder}",
+                                "/usr/src/linux-5.1.4.arch1/include/",
+                                "/usr/src/linux-5.1.4.arch1/arch/x86/include/"
+                        ],
+                        "defines": [],
+                        "intelliSenseMode": "clang-x64",
+                        "browse": {
+                                "path": [
+                                        "${workspaceFolder}",
+                                        "/usr/src/linux-5.1.4.arch1/include/",
+                                        "/usr/src/linux-5.1.4.arch1/arch/x86/include/"
+                                ],
+                                "limitSymbolsToIncludedHeaders": true,
+                                "databaseFilename": ""
+                        },
+                        "compilerPath": "/usr/bin/clang",
+                        "cStandard": "c11",
+                        "cppStandard": "c++17"
+                }
+        ],
+        "version": 4
+}

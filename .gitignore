@@ -1,4 +1,4 @@
-.vscode/
+.vscode/ipch/
 .tmp_versions/
 .module.o.d
 pcmsim.ko

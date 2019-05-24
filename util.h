@@ -33,8 +33,7 @@
 #ifndef __PCMSIM_UTIL_H
 #define __PCMSIM_UTIL_H
 
-#define UNSIGNED_SHIFT	2
-
+#define UNSIGNED_SHIFT 2
 
 #ifndef __PCMSIM_UTIL_NO_EXTERN
 
@@ -44,7 +43,6 @@
 extern unsigned overhead_get_ticks;
 
 #endif
-
 
 /**
  * Calibrate the timers in utilities
@@ -59,7 +57,7 @@ u64 get_ticks(void);
 /**
  * Return the current value of the processor's tick counter, but do not flush the pipeline
  */
-u64 rdtsc(void);
+u64 _rdtsc(void);
 
 /**
  * Calculate integer square root of a 32-bit integer

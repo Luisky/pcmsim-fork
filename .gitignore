@@ -1,3 +1,9 @@
 .vscode/
 .tmp_versions/
 .module.o.d
+pcmsim.ko
+Module.symvers
+modules.order
+pcmsim.mod.c
+.*.*.cmd
+*.o

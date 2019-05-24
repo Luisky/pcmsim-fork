@@ -43,12 +43,10 @@
 #define __PCMSIM_UTIL_NO_EXTERN
 #include "util.h"
 
-
 /**
  * The overhead of get_ticks()
  */
 unsigned overhead_get_ticks = 0;
-
 
 /**
  * Return the current value of the processor's tick counter
@@ -58,54 +56,51 @@ u64 get_ticks(void)
 	unsigned a, d;
 
 	// Flush the pipeline
-	
+
 #ifndef __LP64__
 
 	asm("pushl %eax\n\t"
-		"pushl %ebx\n\t"
-		"pushl %ecx\n\t"
-		"pushl %edx\n\t"
-		"xorl %eax, %eax\n\t"
-		"cpuid\n\t"
-		"popl %edx\n\t"
-		"popl %ecx\n\t"
-		"popl %ebx\n\t"
-		"popl %eax\n\t");
+	    "pushl %ebx\n\t"
+	    "pushl %ecx\n\t"
+	    "pushl %edx\n\t"
+	    "xorl %eax, %eax\n\t"
+	    "cpuid\n\t"
+	    "popl %edx\n\t"
+	    "popl %ecx\n\t"
+	    "popl %ebx\n\t"
+	    "popl %eax\n\t");
 
 #else
 
 	asm("pushq %rax\n\t"
-		"pushq %rbx\n\t"
-		"pushq %rcx\n\t"
-		"pushq %rdx\n\t"
-		"xorq %rax, %rax\n\t"
-		"cpuid\n\t"
-		"popq %rdx\n\t"
-		"popq %rcx\n\t"
-		"popq %rbx\n\t"
-		"popq %rax\n\t");
+	    "pushq %rbx\n\t"
+	    "pushq %rcx\n\t"
+	    "pushq %rdx\n\t"
+	    "xorq %rax, %rax\n\t"
+	    "cpuid\n\t"
+	    "popq %rdx\n\t"
+	    "popq %rcx\n\t"
+	    "popq %rbx\n\t"
+	    "popq %rax\n\t");
 
 #endif
 
-
 	// Read the number of ticks
 
-	asm volatile("rdtsc" : "=a" (a), "=d" (d));
+	asm volatile("rdtsc" : "=a"(a), "=d"(d));
 
 	return (((u64)a) | (((u64)d) << 32));
 }
 
-
 /**
  * Return the current value of the processor's tick counter, but do not flush the pipeline
  */
-u64 rdtsc(void)
+u64 _rdtsc(void)
 {
 	unsigned a, d;
-	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-	return ( ((u64)a) | ( ((u64)d) << 32 ) );
+	asm volatile("rdtsc" : "=a"(a), "=d"(d));
+	return (((u64)a) | (((u64)d) << 32));
 }
-
 
 /**
  * Calibrate the timers in utilities
@@ -115,18 +110,16 @@ void util_calibrate(void)
 	unsigned max_count = 128;
 	unsigned u, s, t;
 
-
 	// Measure the overhead of get_ticks()
 
 	t = 0;
 	for (u = 0; u < max_count; u++) {
-		s  = get_ticks();
+		s = get_ticks();
 		t += get_ticks() - s;
 	}
 
 	overhead_get_ticks = t / max_count;
 }
-
 
 /**
  * Calculate integer square root of a 32-bit integer
@@ -139,9 +132,11 @@ unsigned int sqrt32(unsigned long n)
 	unsigned int g = 0x8000;
 
 	for (;;) {
-		if (g*g > n) g ^= c;
+		if (g * g > n)
+			g ^= c;
 		c >>= 1;
-		if (c == 0) return g;
+		if (c == 0)
+			return g;
 		g |= c;
 	}
 }

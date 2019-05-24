@@ -53,7 +53,6 @@
 #include "pcm.h"
 #include "util.h"
 
-
 /**
  * The maximum number of PCM devices
  */
@@ -84,7 +83,6 @@ static LIST_HEAD(pcmsim_devices);
  */
 static DEFINE_MUTEX(pcmsim_devices_mutex);
 
-
 /**
  * Initialize one device
  */
@@ -92,7 +90,7 @@ static struct pcmsim_device *pcmsim_init_one(int i)
 {
 	struct pcmsim_device *pcmsim;
 
-	list_for_each_entry(pcmsim, &pcmsim_devices, pcmsim_list) {
+	list_for_each_entry (pcmsim, &pcmsim_devices, pcmsim_list) {
 		if (pcmsim->pcmsim_number == i)
 			goto out;
 	}
@@ -106,7 +104,6 @@ out:
 	return pcmsim;
 }
 
-
 /**
  * Delete a device
  */
@@ -117,72 +114,71 @@ static void pcmsim_del_one(struct pcmsim_device *pcmsim)
 	pcmsim_free(pcmsim);
 }
 
-
 /**
  * Probe a device
  */
 static struct kobject *pcmsim_probe(dev_t dev, int *part, void *data)
 {
 	struct pcmsim_device *pcmsim;
-	struct kobject *kobj;
+	struct kobject *      kobj;
 
 	mutex_lock(&pcmsim_devices_mutex);
 	pcmsim = pcmsim_init_one(dev & MINORMASK);
-	kobj = pcmsim ? get_disk(pcmsim->pcmsim_disk) : ERR_PTR(-ENOMEM);
+	kobj   = pcmsim ? get_disk_and_module(pcmsim->pcmsim_disk) :
+			ERR_PTR(-ENOMEM);
 	mutex_unlock(&pcmsim_devices_mutex);
 
 	*part = 0;
 	return kobj;
 }
 
-
 /**
  * Initialize a module
  */
 static int __init pcmsim_init(void)
 {
-	int i;
-	unsigned long range;
+	int		      i;
+	unsigned long	 range;
 	struct pcmsim_device *pcmsim, *next;
 
 	// Initialize the subsystems
-	
+
 	util_calibrate();
 	memory_calibrate();
 	pcm_calibrate();
-	
 
 	// Initialize the devices
 
-	if (register_blkdev(PCMSIM_MAJOR, "pcmsim")) return -EIO;
+	if (register_blkdev(PCMSIM_MAJOR, "pcmsim"))
+		return -EIO;
 
 	for (i = 0; i < pcmsim_num_devices; i++) {
 		pcmsim = pcmsim_alloc(i, pcmsim_capacity_mb);
-		if (!pcmsim) goto out_free;
+		if (!pcmsim)
+			goto out_free;
 		list_add_tail(&pcmsim->pcmsim_list, &pcmsim_devices);
 	}
-	
 
 	// Register the block devices
 
-	list_for_each_entry(pcmsim, &pcmsim_devices, pcmsim_list) {
+	list_for_each_entry (pcmsim, &pcmsim_devices, pcmsim_list) {
 		add_disk(pcmsim->pcmsim_disk);
 	}
 
-	range = pcmsim_num_devices ? pcmsim_num_devices : 1UL << (MINORBITS - 1);
-	blk_register_region(MKDEV(PCMSIM_MAJOR, 0), range, THIS_MODULE, pcmsim_probe, NULL, NULL);
-
+	range = pcmsim_num_devices ? pcmsim_num_devices :
+				     1UL << (MINORBITS - 1);
+	blk_register_region(MKDEV(PCMSIM_MAJOR, 0), range, THIS_MODULE,
+			    pcmsim_probe, NULL, NULL);
 
 	// Finalize
 
 	printk(KERN_INFO "pcmsim: module loaded\n");
 	return 0;
 
-
 	// Cleanup on error: Free all devices
 
 out_free:
-	list_for_each_entry_safe(pcmsim, next, &pcmsim_devices, pcmsim_list) {
+	list_for_each_entry_safe (pcmsim, next, &pcmsim_devices, pcmsim_list) {
 		list_del(&pcmsim->pcmsim_list);
 		pcmsim_free(pcmsim);
 	}
@@ -191,25 +187,24 @@ out_free:
 	return -ENOMEM;
 }
 
-
 /**
  * Deinitalize a module
  */
 static void __exit pcmsim_exit(void)
 {
-	unsigned long range;
+	unsigned long	 range;
 	struct pcmsim_device *pcmsim, *next;
 
-	range = pcmsim_num_devices ? pcmsim_num_devices : 1UL << (MINORBITS - 1);
+	range = pcmsim_num_devices ? pcmsim_num_devices :
+				     1UL << (MINORBITS - 1);
 
-	list_for_each_entry_safe(pcmsim, next, &pcmsim_devices, pcmsim_list) {
+	list_for_each_entry_safe (pcmsim, next, &pcmsim_devices, pcmsim_list) {
 		pcmsim_del_one(pcmsim);
 	}
 
 	blk_unregister_region(MKDEV(PCMSIM_MAJOR, 0), range);
 	unregister_blkdev(PCMSIM_MAJOR, "pcmsim");
 }
-
 
 /**
  * PCM Module declarations

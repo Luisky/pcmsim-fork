@@ -4,16 +4,20 @@
                         "name": "Linux",
                         "includePath": [
                                 "${workspaceFolder}",
-                                "/usr/src/linux-5.1.4.arch1/include/",
-                                "/usr/src/linux-5.1.4.arch1/arch/x86/include/"
+                                "/usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/",
+                                "/usr/src/linux-5.1.5.arch1/include/",
+                                "/usr/src/linux-5.1.5.arch1/arch/x86/include/",
+                                "/usr/src/linux-5.1.5.arch1/arch/x86/include/generated/"
                         ],
                         "defines": [],
                         "intelliSenseMode": "clang-x64",
                         "browse": {
                                 "path": [
                                         "${workspaceFolder}",
-                                        "/usr/src/linux-5.1.4.arch1/include/",
-                                        "/usr/src/linux-5.1.4.arch1/arch/x86/include/"
+                                        "/usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/",
+                                        "/usr/src/linux-5.1.5.arch1/include/",
+                                        "/usr/src/linux-5.1.5.arch1/arch/x86/include/",
+                                        "/usr/src/linux-5.1.5.arch1/arch/x86/include/generated/"
                                 ],
                                 "limitSymbolsToIncludedHeaders": true,
                                 "databaseFilename": ""

@@ -148,7 +148,11 @@ unsigned memory_tCL10 = 25; /* x 10 */
  */
 static __inline__ void flush(void)
 {
-#ifndef __LP64__
+#ifdef __arm__
+
+	asm volatile("ISB");
+
+#ifdef __i386__
 
 	asm("pushl %eax\n\t"
 	    "pushl %ebx\n\t"
@@ -161,7 +165,7 @@ static __inline__ void flush(void)
 	    "popl %ebx\n\t"
 	    "popl %eax\n\t");
 
-#else
+#ifdef __amd64__
 
 	asm("pushq %rax\n\t"
 	    "pushq %rbx\n\t"
@@ -186,7 +190,33 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 {
 	unsigned t;
 
-#ifndef __LP64__
+#ifdef __arm__
+
+	unsigned d, f;
+	char     tab[64] = { 0 };
+	//l'ARMv7 ne supporte pas le préchargement
+
+	//initialisation du timer
+	d = get_ticks();
+	// Take the time measurement every 64 bytes (a typical length
+	// of Pentium's L2 cache line)
+	//boucle de lecture du tableau
+
+	asm volatile(" mov R0, #0\n\t"
+		     " mov R1, %0\n\t"
+		     " boucle: CMP R0, #64\n\t"
+		     " BEQ fin\n\t"
+		     " ADD R0, R0, #1\n\t"
+		     " LDRSB R2, [R1]\n\t"
+		     " ADD R1, R1, #1\n\t"
+		     " B boucle\n\t"
+		     " fin:\n\t"
+		     :
+		     : "r"(&tab[0]));
+
+	f = get_ticks();
+
+#ifdef __i386__
 
 	// Take the time measurement every 64 bytes (a typical length
 	// of Pentium's L2 cache line)
@@ -296,7 +326,7 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 	    : "=D"(t)
 	    : "S"(buffer), "D"(size / 64));
 
-#else
+#ifdef __amd64__
 
 	// Take the time measurement every 64 bytes (a typical length
 	// of Pentium's L2 cache line)
@@ -372,6 +402,10 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 
 	flush();
 
+#ifdef __arm__
+	t = f - d;
+#endif
+
 	return t;
 }
 
@@ -380,7 +414,21 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
  */
 void memory_read(const void *buffer, size_t size)
 {
-#ifndef __LP64__
+#ifdef __arm__
+
+	asm volatile("Mov R0, %0\n\t" : : "r"(size));
+	asm volatile("Mov R1, %0\n\t" : : "r"(&buffer[0]));
+	asm volatile("mov R2, #0\n\t"
+		     " boucle_lec: CMP  R0 , R2\n\t"
+		     " BEQ end\n\t"
+		     "  LDRSB  R3, [R1]\n\t"
+		     " ADD R1, R1, #1\n\t"
+		     " ADD R2, R2, #1\n\t"
+		     " B boucle_lec\n\t"
+		     "end:\n\t");
+	flush();
+
+#ifdef __i386__
 
 	asm("pushl %%eax\n\t"
 	    "pushl %%esi\n\t"
@@ -397,7 +445,7 @@ void memory_read(const void *buffer, size_t size)
 	    :
 	    : "S"(buffer), "c"(size >> 2));
 
-#else
+#ifdef __amd64__
 
 	asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
@@ -422,7 +470,27 @@ void memory_read(const void *buffer, size_t size)
  */
 void memory_copy(void *dest, const void *buffer, size_t size)
 {
-#ifndef __LP64__
+#ifdef __arm__
+
+	printk("size %d, adresse buffer %ld, adresse dest %d\n", size,
+	       &buffer[0], &dest[0]);
+	asm volatile("Mov R0, %0\n\t" : : "r"(size));
+	asm volatile("Mov R1, %0\n\t" : : "r"(&buffer[0]));
+	asm volatile("Mov R4, %0\n\t" : : "r"(&dest[0]));
+	asm volatile("mov R2, #0\n\t"
+		     " boucle_cop: CMP  R2 , R0\n\t"
+		     " BEQ end_cop\n\t"
+		     " LDRB  R3, [R1]\n\t"
+		     " STRB  R3, [R4]\n\t"
+		     " ADD R1, R1, #1\n\t"
+		     " ADD R2, R2, #1\n\t"
+		     " ADD R4, R4, #1\n\t"
+		     " B boucle_cop\n\t"
+		     "end_cop:\n\t");
+
+	flush();
+
+#ifdef __i386__
 
 	asm("pushl %%eax\n\t"
 	    "pushl %%esi\n\t"
@@ -441,7 +509,7 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	    :
 	    : "S"(buffer), "D"(dest), "c"(size >> 2));
 
-#else
+#ifdef __amd64__
 
 	asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
@@ -555,6 +623,8 @@ void memory_calibrate(void)
 	int      d, i, ok;
 	int      cached;
 
+	//TODO: check why this exists
+	/*
 #ifdef __LP64__
 	memory_ddr_version = 2;
 	memory_ddr_rating  = 667;
@@ -562,6 +632,7 @@ void memory_calibrate(void)
 	memory_tRP	 = 5;
 	memory_tCL10       = 50;
 #endif
+*/
 
 	// Initialize
 
@@ -587,10 +658,15 @@ void memory_calibrate(void)
 	memory_bus_scale /= 10;
 
 	// Measure the latencies for cached and uncached reads
-
+	printk("Etape 0: Initialisations\n");
 	for (u = 0; u < max_count; u++) {
 		if (buffers[u] != NULL) {
+#if defined(__i386__ || __amd64__)
 			asm volatile("wbinvd");
+#ifdef __arm__
+			asm volatile("Mov R0, #0");
+			asm /*volatile*/ ("MCR p15, 0, R0, c7, c14, 2");
+#endif
 			s = memory_time_read(buffers[u], 4096);
 			t = memory_time_read(buffers[u], 4096);
 
@@ -628,8 +704,12 @@ void memory_calibrate(void)
 
 		for (u = 0; u < max_count; u++) {
 			if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 				asm volatile("wbinvd");
-
+#ifdef __arm__
+				asm volatile("Mov R0, #0");
+				asm volatile("MCR p15, 0, R0, c7, c14, 2");
+#endif
 				s = get_ticks();
 				memory_was_cached(buffers[u], n << 9);
 				s = get_ticks() - s;
@@ -668,14 +748,25 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					s = get_ticks();
 					memory_read(buffers[u], n << 9);
 					s = get_ticks() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("ISB");
+#endif
 
 					t = get_ticks();
 					memory_read(buffers[u], n << 9);
@@ -739,16 +830,29 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
-
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 					s = get_ticks();
 					memory_copy(write_buffer, buffers[u],
 						    n << 9);
 					s = get_ticks() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					memory_read(buffers[u], n << 9);
 					t = get_ticks();
@@ -786,8 +890,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -797,8 +908,15 @@ void memory_calibrate(void)
 						    n << 9);
 					s = get_ticks() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					for (t = 0; t < 128 * 1024; t++)
 						dirty_buffer[t] = 0;
@@ -839,16 +957,26 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
-
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 					memory_read(write_buffer, n << 9);
 					s = get_ticks();
 					memory_copy(write_buffer, buffers[u],
 						    n << 9);
 					s = get_ticks() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("ISB");
+#endif
 
 					memory_read(write_buffer, n << 9);
 					t = get_ticks();
@@ -886,8 +1014,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
 
@@ -914,8 +1049,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -1071,8 +1213,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
-					asm volatile("lfence");
+					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					s = get_ticks();
 					memory_read(buffers[u], n << wd_exp);
@@ -1149,16 +1298,30 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					s = _rdtsc();
 					memory_copy(write_buffer, buffers[u],
 						    n << 9);
 					s = _rdtsc() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					memory_read(buffers[u], n << 9);
 					t = _rdtsc();
@@ -1248,8 +1411,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -1259,8 +1429,15 @@ void memory_calibrate(void)
 						    n << 9);
 					s = _rdtsc() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					for (t = 0; t < 128 * 1024; t++)
 						dirty_buffer[t] = 0;
@@ -1353,8 +1530,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					memory_read(write_buffer, n << 9);
 					s = _rdtsc();
@@ -1362,7 +1546,11 @@ void memory_calibrate(void)
 						    n << 9);
 					s = _rdtsc() - s;
 
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("ISB");
+#endif
 
 					memory_read(write_buffer, n << 9);
 					t = _rdtsc();
@@ -1452,8 +1640,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
 
@@ -1509,8 +1704,15 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
+#if defined(__i386__) || defined(__amd64__)
 					asm volatile("wbinvd");
 					asm volatile("mfence");
+#ifdef __arm__
+					asm volatile("Mov R0, #0");
+					asm /*volatile*/ (
+						"MCR p15, 0, R0, c7, c14, 2");
+					asm volatile("ISB");
+#endif
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;

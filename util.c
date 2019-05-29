@@ -57,7 +57,7 @@ u64 get_ticks(void)
 
 	// Flush the pipeline
 
-#ifndef __LP64__
+#ifdef __i386__
 
 	asm("pushl %eax\n\t"
 	    "pushl %ebx\n\t"
@@ -70,7 +70,7 @@ u64 get_ticks(void)
 	    "popl %ebx\n\t"
 	    "popl %eax\n\t");
 
-#else
+#ifdef __amd64__
 
 	asm("pushq %rax\n\t"
 	    "pushq %rbx\n\t"

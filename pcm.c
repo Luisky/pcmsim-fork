@@ -330,6 +330,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 
 #ifdef PCMSIM_GROUND_TRUTH
 	cached = memory_was_cached(dest, length);
+	printk("\n");
 #endif
 
 	// Perform the operation
@@ -340,6 +341,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		length); // This does mfence, so we do not need pipeline flush
 	after = _rdtsc();
 	T     = after - before;
+	printk("fin\n\n");
 
 	// Handle L2 effects
 
@@ -356,6 +358,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		cached = (T > memory_time_l2_threshold_copy_write_lo[sectors] &&
 			  T < memory_time_l2_threshold_copy_write[0][sectors]);
 	}
+	printk("fin\n");
 #endif
 
 	model->stat_writes[cached]++;
@@ -374,6 +377,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	if (!(cached && dirty)) {
 		model->budget += pcm_latency_delta[PCM_WRITE][sectors];
 	}
+	printk("\n");
 #endif
 
 	// Stall
@@ -385,6 +389,8 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		T = _rdtsc();
 		model->budget -= (int)(T - t);
 		t = T;
+		printk("budget %lu, overhead_get ticks %lu, T %lu, t %lu\n ",
+		       model->budget, overhead_get_ticks, T, t);
 	}
 #endif
 }

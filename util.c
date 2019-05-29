@@ -53,6 +53,20 @@ unsigned overhead_get_ticks = 0;
  */
 u64 get_ticks(void)
 {
+#ifdef __arm__
+
+	unsigned long int a, b, c;
+	// Read the number of ticks
+	asm volatile("ISB");
+	asm volatile("mrc p15, 0, %0, c9, c13,0" : "=r"(b));
+
+	printk("get ticks %lu\n", (u64)b * 64);
+	return (u64)b * 64;
+
+#endif
+
+#if defined(__i386__) || defined(__amd64__)
+
 	unsigned a, d;
 
 	// Flush the pipeline
@@ -70,7 +84,7 @@ u64 get_ticks(void)
 	    "popl %ebx\n\t"
 	    "popl %eax\n\t");
 
-#ifdef __amd64__
+#elif __amd64__
 
 	asm("pushq %rax\n\t"
 	    "pushq %rbx\n\t"
@@ -90,6 +104,8 @@ u64 get_ticks(void)
 	asm volatile("rdtsc" : "=a"(a), "=d"(d));
 
 	return (((u64)a) | (((u64)d) << 32));
+
+#endif
 }
 
 /**
@@ -97,9 +113,20 @@ u64 get_ticks(void)
  */
 u64 _rdtsc(void)
 {
+#if defined(__i386__) || defined(__amd64__)
+
 	unsigned a, d;
 	asm volatile("rdtsc" : "=a"(a), "=d"(d));
 	return (((u64)a) | (((u64)d) << 32));
+
+#elif __arm__
+
+	unsigned long int a, b, c;
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(b));
+	printk("rdtsc %lu\n", (u64)b * 64);
+	return (u64)b * 64;
+
+#endif
 }
 
 /**

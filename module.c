@@ -146,6 +146,18 @@ static int __init pcmsim_init(void)
 
 	// Initialize the subsystems
 
+#ifdef __arm__
+	int32_t v = 1;
+	v |= 2;
+	v |= 4;
+	//v|=8;
+	asm("MCR p15, 0, %0, c9, c14, 0\n\t " ::"r"(1));
+	asm("MCR p15, 0, %0, c9, c14, 2\n\t" ::"r"(v));
+	asm volatile("MCR p15, 0, %0, c9, c12,0\t\n" ::"r"(0x8000000f));
+	asm volatile("MCR p15, 0, %0, c9, c12,1\t\n" ::"r"(0x8000000f));
+	asm volatile("MCR p15, 0, %0, c9, c12,3\t\n" ::"r"(0x8000000f));
+#endif
+
 	util_calibrate();
 	memory_calibrate();
 	pcm_calibrate();

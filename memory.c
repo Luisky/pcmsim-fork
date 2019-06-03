@@ -45,6 +45,13 @@
 #include "memory.h"
 #include "util.h"
 
+// there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
+#ifdef __arm__
+
+unsigned cpu_khz = 300000;
+
+#endif
+
 /**
  * The threshold (the number of ticks), below which we can assume
  * no L2 misses in a result of time_read()
@@ -410,9 +417,14 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 }
 
 /**
+ * noinline needed for ARM
  * Read the contents of a buffer
  */
+#if defined(__i386__) || defined(__amd64__)
 void memory_read(const void *buffer, size_t size)
+#elif __arm__
+void noinline memory_read(const void *buffer, size_t size)
+#endif
 {
 #ifdef __arm__
 
@@ -661,7 +673,7 @@ void memory_calibrate(void)
 	printk("Etape 0: Initialisations\n");
 	for (u = 0; u < max_count; u++) {
 		if (buffers[u] != NULL) {
-#if defined(__i386__ || __amd64__)
+#if defined(__i386__) || defined(__amd64__)
 			asm volatile("wbinvd");
 #elif __arm__
 			asm volatile("Mov R0, #0");

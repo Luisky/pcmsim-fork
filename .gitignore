@@ -8,3 +8,5 @@ modules.order
 pcmsim.mod.c
 .*.*.cmd
 *.o
+*.*.dwo
+.*.o.d

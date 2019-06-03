@@ -341,7 +341,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		length); // This does mfence, so we do not need pipeline flush
 	after = _rdtsc();
 	T     = after - before;
-	printk("fin\n\n"); //TODO: remove this too
+	// printk("fin\n\n"); //TODO: remove this too
 
 	// Handle L2 effects
 
@@ -358,7 +358,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		cached = (T > memory_time_l2_threshold_copy_write_lo[sectors] &&
 			  T < memory_time_l2_threshold_copy_write[0][sectors]);
 	}
-	printk("fin\n");
+	// printk("fin\n"); //TODO: remove this
 #endif
 
 	model->stat_writes[cached]++;

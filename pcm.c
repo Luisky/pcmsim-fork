@@ -341,7 +341,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		length); // This does mfence, so we do not need pipeline flush
 	after = _rdtsc();
 	T     = after - before;
-	printk("fin\n\n");
+	printk("fin\n\n"); //TODO: remove this too
 
 	// Handle L2 effects
 
@@ -382,7 +382,8 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 
 	// Stall
 
-#ifndef PCMSIM_GROUND_TRUTH
+//TODO: check why this was ifndef
+#ifdef PCMSIM_GROUND_TRUTH
 	t = _rdtsc();
 	model->budget -= (int)(t - after);
 	while (model->budget >= (int)overhead_get_ticks) {

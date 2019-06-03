@@ -122,7 +122,7 @@ static int pcmsim_do_bvec(struct pcmsim_device *pcmsim, struct page *page,
 	int   err = 0;
 
 	mem = kmap_atomic(page);
-	printk(" adresse allouée : %p\n", mem); //TODO: remove this
+	//printk(" adresse allouée : %p\n", mem); //TODO: remove this
 
 	if (rw == READ) {
 		copy_from_pcmsim(mem + off, pcmsim, sector, len);

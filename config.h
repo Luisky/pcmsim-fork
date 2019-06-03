@@ -36,7 +36,7 @@
 /**
  * Maximum number of sectors the memory system considers
  */
-#define PCMSIM_MEM_SECTORS	8
+#define PCMSIM_MEM_SECTORS 8
 
 /**
  * Uncomment to disable prefetch during cache tests

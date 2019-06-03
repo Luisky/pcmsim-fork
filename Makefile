@@ -30,4 +30,4 @@ arm:
 
 clean:
 	rm -rf *.o *.ko *.mod.c Module.* modules.* \
-	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp*
+	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp* *.*.dwo

@@ -121,9 +121,9 @@ u64 _rdtsc(void)
 
 #elif __arm__
 
-	unsigned long int a, b, c;
+	unsigned long int a, b, c; //TODO: check if those 3 are necessary
 	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(b));
-	printk("rdtsc %lu\n", (u64)b * 64);
+	printk("rdtsc %llu\n", (u64)b * 64);
 	return (u64)b * 64;
 
 #endif

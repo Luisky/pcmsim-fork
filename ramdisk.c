@@ -81,7 +81,6 @@ void __always_inline copy_to_pcmsim(struct pcmsim_device *pcmsim,
 #else
 	memory_copy(pcm, src, n);
 #endif
-	printk("ooook\n"); //TODO: probably remove this !
 }
 
 /**
@@ -107,11 +106,8 @@ void __always_inline copy_from_pcmsim(void *dest, struct pcmsim_device *pcmsim,
 			 ((const char *)pcm) + o, l, sector);
 		n -= l;
 	}
-	printk("apres boucle\n"); //TODO: ca aussi
 #else
-	printk("avant boucle2\n");
 	memory_copy(dest, pcm, n);
-	printk("avant boucle2\n");
 #endif
 }
 
@@ -126,7 +122,7 @@ static int pcmsim_do_bvec(struct pcmsim_device *pcmsim, struct page *page,
 	int   err = 0;
 
 	mem = kmap_atomic(page);
-	printk(" adresse allouée : %ld\n", mem); //TOOD: ca aussi
+	printk(" adresse allouée : %p\n", mem); //TODO: remove this
 
 	if (rw == READ) {
 		copy_from_pcmsim(mem + off, pcmsim, sector, len);

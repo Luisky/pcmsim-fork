@@ -330,7 +330,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 
 #ifdef PCMSIM_GROUND_TRUTH
 	cached = memory_was_cached(dest, length);
-	printk("\n");
+	//printk("\n"); //TODO: why this ? remove probably
 #endif
 
 	// Perform the operation
@@ -377,7 +377,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	if (!(cached && dirty)) {
 		model->budget += pcm_latency_delta[PCM_WRITE][sectors];
 	}
-	printk("\n");
+	// printk("\n"); //TODO: remove this
 #endif
 
 	// Stall

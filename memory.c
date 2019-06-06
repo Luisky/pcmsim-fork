@@ -45,6 +45,8 @@
 #include "memory.h"
 #include "util.h"
 
+#define MMC_MAX_COUNT 2
+
 // there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
 #ifdef __arm__
 
@@ -196,6 +198,8 @@ static __inline__ void flush(void)
 static unsigned noinline memory_time_read(const void *buffer, size_t size)
 {
 	unsigned t;
+
+	//TODO: fix this -> mettre la meme boucle que dans copy et read
 
 #ifdef __arm__
 
@@ -417,27 +421,28 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 }
 
 /**
- * noinline needed for ARM
  * Read the contents of a buffer
  */
-#if defined(__i386__) || defined(__amd64__)
 void memory_read(const void *buffer, size_t size)
-#elif __arm__
-void noinline memory_read(const void *buffer, size_t size)
-#endif
 {
 #ifdef __arm__
 
-	asm volatile("Mov R0, %0\n\t" : : "r"(size));
-	asm volatile("Mov R1, %0\n\t" : : "r"(&buffer[0]));
+	//printk("size %d, adresse buffer %px", size, buffer);
+
+	// The argument should be loaded like this anyway, but removing
+	// them breaks the noinline
+	// TODO: find why !
+	asm volatile("Mov R0, %0\n\t" : : "r"(buffer));
+	asm volatile("Mov R1, %0\n\t" : : "r"(size));
 	asm volatile("mov R2, #0\n\t"
-		     " boucle_lec: CMP  R0 , R2\n\t"
-		     " BEQ end\n\t"
-		     "  LDRSB  R3, [R1]\n\t"
-		     " ADD R1, R1, #1\n\t"
+		     " boucle_lec: CMP  R2 , R1\n\t"
+		     " BEQ end_lec\n\t"
+		     " LDRSB  R3, [R0]\n\t"
+		     " ADD R0, R0, #1\n\t"
 		     " ADD R2, R2, #1\n\t"
 		     " B boucle_lec\n\t"
-		     "end:\n\t");
+		     "end_lec:\n\t");
+
 	flush();
 
 #elif __i386__
@@ -484,18 +489,22 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 {
 #ifdef __arm__
 
-	printk("size %d, adresse buffer %ld, adresse dest %d\n", size,
-	       &buffer[0], &dest[0]);
-	asm volatile("Mov R0, %0\n\t" : : "r"(size));
-	asm volatile("Mov R1, %0\n\t" : : "r"(&buffer[0]));
-	asm volatile("Mov R4, %0\n\t" : : "r"(&dest[0]));
-	asm volatile("mov R2, #0\n\t"
-		     " boucle_cop: CMP  R2 , R0\n\t"
+	/*printk("size %d, adresse buffer %px, adresse dest %px\n", size, buffer,
+	       dest); // https://lore.kernel.org/patchwork/patch/935610/ */
+
+	// The argument should be loaded like this anyway, but removing
+	// them breaks the noinline
+	// TODO: find why !
+	asm volatile("Mov R0, %0\n\t" : : "r"(dest));
+	asm volatile("Mov R1, %0\n\t" : : "r"(buffer));
+	asm volatile("Mov R2, %0\n\t" : : "r"(size));
+	asm volatile("mov R4, #0\n\t"
+		     " boucle_cop: CMP  R4 , R2\n\t"
 		     " BEQ end_cop\n\t"
 		     " LDRB  R3, [R1]\n\t"
-		     " STRB  R3, [R4]\n\t"
+		     " STRB  R3, [R0]\n\t"
+		     " ADD R0, R0, #1\n\t"
 		     " ADD R1, R1, #1\n\t"
-		     " ADD R2, R2, #1\n\t"
 		     " ADD R4, R4, #1\n\t"
 		     " B boucle_cop\n\t"
 		     "end_cop:\n\t");
@@ -567,6 +576,11 @@ unsigned variance(void **buffers, unsigned *data, unsigned count,
 		}
 	}
 
+	if (count == 1) {
+		printk("PROBLEM\n");
+		BUG();
+	}
+
 	return ss / (count - 1);
 }
 
@@ -603,12 +617,10 @@ unsigned hw95pi(unsigned var, unsigned count)
 /**
  * Calibrate the timer to determine whether there was an L2 cache miss or not
  */
-#define MMC_MAX_COUNT 100
-
 void memory_calibrate(void)
 {
 	unsigned  count     = 0;
-	unsigned  max_count = 100;
+	unsigned  max_count = 2; //TODO: change this back
 	void *    buffers[MMC_MAX_COUNT];
 	void *    write_buffer;
 	unsigned *dirty_buffer;
@@ -636,6 +648,7 @@ void memory_calibrate(void)
 	int      cached;
 
 	//TODO: check why this exists
+
 	/*
 #ifdef __LP64__
 	memory_ddr_version = 2;
@@ -649,13 +662,14 @@ void memory_calibrate(void)
 	// Initialize
 
 	write_buffer = vmalloc(16 * PCMSIM_MEM_SECTORS * 1024);
-	BUG_ON(write_buffer == NULL);
+	BUG_ON(write_buffer == NULL); // 131,072 KB
 
 	dirty_buffer = (unsigned *)vmalloc(sizeof(unsigned) * 4 * 1024 * 1024);
-	BUG_ON(dirty_buffer == NULL);
+	BUG_ON(dirty_buffer == NULL); // either 16MB or 32MB
 
 	for (u = 0; u < max_count; u++) {
-		buffers[u] = vmalloc(16 * PCMSIM_MEM_SECTORS * 1024);
+		buffers[u] = vmalloc(16 * PCMSIM_MEM_SECTORS *
+				     1024); //each 131,072 KB, so 13MB total
 		if (buffers[u] != NULL)
 			count++;
 	}
@@ -670,14 +684,14 @@ void memory_calibrate(void)
 	memory_bus_scale /= 10;
 
 	// Measure the latencies for cached and uncached reads
-	printk("Etape 0: Initialisations\n");
+	printk("Etape 0: Initialisations\n"); //TODO: remove this one day
 	for (u = 0; u < max_count; u++) {
 		if (buffers[u] != NULL) {
 #if defined(__i386__) || defined(__amd64__)
 			asm volatile("wbinvd");
 #elif __arm__
 			asm volatile("Mov R0, #0");
-			asm /*volatile*/ ("MCR p15, 0, R0, c7, c14, 2");
+			asm("MCR p15, 0, R0, c7, c14, 2");
 #endif
 			s = memory_time_read(buffers[u], 4096);
 			t = memory_time_read(buffers[u], 4096);
@@ -698,6 +712,8 @@ void memory_calibrate(void)
 	WARN_ON(count == 0);
 	if (count == 0)
 		count++;
+
+	printk("count = %d et l2_misses = %d\n", count, l2_misses);
 
 	if (l2_misses <= no_misses + count * 4) {
 		printk(KERN_WARNING
@@ -749,6 +765,14 @@ void memory_calibrate(void)
 		memory_overhead_was_cached[1][n] = no_misses_total / count;
 	}
 
+	/*
+         * IMPORTANT
+         * The loop below is the most important thing to us
+         * in this function, as it gives us the memory timing we
+         * need in order to add the PCM delay later.
+         * 
+         */
+
 	//
 	// Measure the total cost of memory_read()
 	//
@@ -765,8 +789,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -799,30 +822,34 @@ void memory_calibrate(void)
 				}
 			}
 
-			memory_overhead_read[0][n] = l2_misses_total / count;
-			memory_overhead_read[1][n] = no_misses_total / count;
+			memory_overhead_read[PCMSIM_MEM_UNCACHED][n] =
+				l2_misses_total / count;
+			memory_overhead_read[PCMSIM_MEM_CACHED][n] =
+				no_misses_total / count;
 
-			memory_var_overhead_read[0][n] = variance(
-				buffers, data_l2_misses, count, max_count);
-			memory_var_overhead_read[1][n] = variance(
-				buffers, data_no_misses, count, max_count);
+			/*memory_var_overhead_read[PCMSIM_MEM_UNCACHED][n] =
+				variance(buffers, data_l2_misses, count,
+					 max_count);
+			memory_var_overhead_read[PCMSIM_MEM_CACHED][n] =
+				variance(buffers, data_no_misses, count,
+					 max_count);*/
 		}
 
 		// Sanity check
 
 		ok = 1;
 		for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-			if (memory_overhead_read[0][n] == 0)
+			if (memory_overhead_read[PCMSIM_MEM_UNCACHED][n] == 0)
 				ok = 0;
-			if (memory_overhead_read[1][n] == 0)
+			if (memory_overhead_read[PCMSIM_MEM_CACHED][n] == 0)
 				ok = 0;
 		}
 		for (n = 2; n <= PCMSIM_MEM_SECTORS; n++) {
-			if (memory_overhead_read[0][n - 1] >=
-			    memory_overhead_read[0][n])
+			if (memory_overhead_read[PCMSIM_MEM_UNCACHED][n - 1] >=
+			    memory_overhead_read[PCMSIM_MEM_UNCACHED][n])
 				ok = 0;
-			if (memory_overhead_read[1][n - 1] >=
-			    memory_overhead_read[1][n])
+			if (memory_overhead_read[PCMSIM_MEM_CACHED][n - 1] >=
+			    memory_overhead_read[PCMSIM_MEM_CACHED][n])
 				ok = 0;
 		}
 		if (ok)
@@ -847,8 +874,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 					s = get_ticks();
@@ -861,8 +887,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -890,10 +915,10 @@ void memory_calibrate(void)
 			memory_overhead_copy[0][0][n] = l2_misses_total / count;
 			memory_overhead_copy[1][0][n] = no_misses_total / count;
 
-			memory_var_overhead_copy[0][0][n] = variance(
+			/*memory_var_overhead_copy[0][0][n] = variance(
 				buffers, data_l2_misses, count, max_count);
 			memory_var_overhead_copy[1][0][n] = variance(
-				buffers, data_no_misses, count, max_count);
+				buffers, data_no_misses, count, max_count);*/
 
 			// Destination is not cached + writeback
 
@@ -907,8 +932,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -925,8 +949,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -957,10 +980,10 @@ void memory_calibrate(void)
 			memory_overhead_copy[0][2][n] = l2_misses_total / count;
 			memory_overhead_copy[1][2][n] = no_misses_total / count;
 
-			memory_var_overhead_copy[0][2][n] = variance(
+			/*memory_var_overhead_copy[0][2][n] = variance(
 				buffers, data_l2_misses, count, max_count);
 			memory_var_overhead_copy[1][2][n] = variance(
-				buffers, data_no_misses, count, max_count);
+				buffers, data_no_misses, count, max_count);*/
 
 			// Destination is cached
 
@@ -974,8 +997,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 					memory_read(write_buffer, n << 9);
@@ -1014,10 +1036,10 @@ void memory_calibrate(void)
 			memory_overhead_copy[0][1][n] = l2_misses_total / count;
 			memory_overhead_copy[1][1][n] = no_misses_total / count;
 
-			memory_var_overhead_copy[0][1][n] = variance(
+			/*memory_var_overhead_copy[0][1][n] = variance(
 				buffers, data_l2_misses, count, max_count);
 			memory_var_overhead_copy[1][1][n] = variance(
-				buffers, data_no_misses, count, max_count);
+				buffers, data_no_misses, count, max_count);*/
 
 			// Source is not cached + writeback
 
@@ -1031,8 +1053,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 					for (s = 0; s < 128 * 1024; s++)
@@ -1053,8 +1074,8 @@ void memory_calibrate(void)
 			}
 
 			memory_overhead_copy[2][2][n] = l2_misses_total / count;
-			memory_var_overhead_copy[2][2][n] = variance(
-				buffers, data_l2_misses, count, max_count);
+			/*memory_var_overhead_copy[2][2][n] = variance(
+				buffers, data_l2_misses, count, max_count);*/
 
 			l2_misses_total = 0;
 			no_misses_total = 0;
@@ -1066,8 +1087,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1090,8 +1110,8 @@ void memory_calibrate(void)
 			}
 
 			memory_overhead_copy[2][1][n] = l2_misses_total / count;
-			memory_var_overhead_copy[2][1][n] = variance(
-				buffers, data_l2_misses, count, max_count);
+			/*memory_var_overhead_copy[2][1][n] = variance(
+				buffers, data_l2_misses, count, max_count);*/
 
 			// Threshold - base
 
@@ -1230,8 +1250,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1315,8 +1334,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1330,8 +1348,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1428,8 +1445,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1446,8 +1462,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1547,8 +1562,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1657,8 +1671,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 					for (s = 0; s < 128 * 1024; s++)
@@ -1721,8 +1734,7 @@ void memory_calibrate(void)
 					asm volatile("mfence");
 #elif __arm__
 					asm volatile("Mov R0, #0");
-					asm /*volatile*/ (
-						"MCR p15, 0, R0, c7, c14, 2");
+					asm("MCR p15, 0, R0, c7, c14, 2");
 					asm volatile("ISB");
 #endif
 
@@ -1845,7 +1857,7 @@ void memory_calibrate(void)
 		       memory_overhead_copy[2][2][n]);
 	}
 	printk("\n");
-
+	/*
 	printk("Memory Access - half-widths of 95%% prediction intervals\n");
 	printk("                 rUwU    rUwC      rU    rCwU    rCwC      rC\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
@@ -1868,7 +1880,7 @@ void memory_calibrate(void)
 		       hw95pi(memory_var_overhead_copy[2][2][n], count));
 	}
 	printk("\n");
-
+*/
 	printk("Memory Read is Cached if:\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 		printk("%4d sector%s     T < %4d or (T > %4d and T < %4d)\n", n,

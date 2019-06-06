@@ -25,9 +25,16 @@ PWD   := $(shell pwd)
 default:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
+.PHONY: arm_export
+arm_export: arm export
+
 arm:
 	$(MAKE) KCFLAGS=-march=armv7-a ARCH=arm CROSS_COMPILE=$(CROSS) -C $(BUILDROOT_KDIR) M=$(PWD) modules
 
+export:
+	sudo ./export.sh
+
+.PHONY: clean
 clean:
 	rm -rf *.o *.ko *.mod.c Module.* modules.* \
-	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp* *.*.dwo
+	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp* *.*.dwo .*.dwo

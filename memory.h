@@ -38,9 +38,8 @@
 /**
  * Memory cache codes
  */
-#define PCMSIM_MEM_UNCACHED	0
-#define PCMSIM_MEM_CACHED	1
-
+#define PCMSIM_MEM_UNCACHED 0
+#define PCMSIM_MEM_CACHED 1
 
 #ifndef __PCMSIM_MEM_NO_EXTERN
 
@@ -62,17 +61,20 @@ extern unsigned memory_time_l2_threshold_copy_write_lo[PCMSIM_MEM_SECTORS + 1];
 /**
  * The threshold per number of sectors below which we can assume cached writes
  */
-extern unsigned memory_time_l2_threshold_copy_write[2 /* 0 = uncached read */][PCMSIM_MEM_SECTORS + 1];
+extern unsigned memory_time_l2_threshold_copy_write[2][PCMSIM_MEM_SECTORS + 1];
+/* 0 = uncached read */
 
 /**
  * The average overhead of memory_was_cached() per number of sectors
  */
-extern unsigned memory_overhead_was_cached[2 /* 0 = uncached, 1 = cached */][PCMSIM_MEM_SECTORS + 1];
+extern unsigned memory_overhead_was_cached[2][PCMSIM_MEM_SECTORS + 1];
+/* 0 = uncached, 1 = cached */
 
 /**
  * The average overhead of memory_read() per number of sectors
  */
-extern unsigned memory_overhead_read[2 /* 0 = uncached, 1 = cached */][PCMSIM_MEM_SECTORS + 1];
+extern unsigned memory_overhead_read[2][PCMSIM_MEM_SECTORS + 1];
+/* 0 = uncached, 1 = cached */
 
 /**
  * The threshold per number of sectors for cached reads and uncached writes + write-back
@@ -103,7 +105,6 @@ extern unsigned memory_tRP;
 
 #endif
 
-
 /**
  * Calibrate the timer to determine whether there was an L2 cache miss or not
  */
@@ -121,11 +122,26 @@ u64 get_ticks(void);
  * to function properly, it assumes that the buffer offset and the size
  * are aligned to a cache-line size.
  */
-int memory_was_cached(const void* buffer, size_t size);
+int memory_was_cached(const void *buffer, size_t size);
 
 /**
+ * noinline needed for ARM
+ * Read the contents of a buffer
+ */
+#if defined(__i386__) || defined(__amd64__)
+void memory_read(const void *buffer, size_t size);
+#elif __arm__
+void memory_read(const void *buffer, size_t size) noinline;
+#endif
+
+/**
+ * noinline needed for ARM
  * Copy a memory buffer
  */
-void memory_copy(void* dest, const void* buffer, size_t size);
+#if defined(__i386__) || defined(__amd64__)
+void memory_copy(void *dest, const void *buffer, size_t size);
+#elif __arm__
+void memory_copy(void *dest, const void *buffer, size_t size) noinline;
+#endif
 
 #endif

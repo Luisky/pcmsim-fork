@@ -159,7 +159,7 @@ static int __init pcmsim_init(void)
 #endif
 
 	util_calibrate();
-	memory_calibrate();
+	memory_calibrate(); //TODO: trouver a quoi ca sert
 	pcm_calibrate();
 
 	// Initialize the devices

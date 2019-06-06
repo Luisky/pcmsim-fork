@@ -60,7 +60,7 @@ u64 get_ticks(void)
 	asm volatile("ISB");
 	asm volatile("mrc p15, 0, %0, c9, c13,0" : "=r"(b));
 
-	printk("get ticks %lu\n", (u64)b * 64);
+	//printk("get ticks %lu\n", (u64)b * 64); //TODO: remove this if possible
 	return (u64)b * 64;
 
 #endif
@@ -123,7 +123,7 @@ u64 _rdtsc(void)
 
 	unsigned long int a, b, c; //TODO: check if those 3 are necessary
 	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(b));
-	printk("rdtsc %llu\n", (u64)b * 64);
+	//printk("rdtsc %llu\n", (u64)b * 64);
 	return (u64)b * 64;
 
 #endif

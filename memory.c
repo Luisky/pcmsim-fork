@@ -45,7 +45,7 @@
 #include "memory.h"
 #include "util.h"
 
-#define MMC_MAX_COUNT 2
+#define MMC_MAX_COUNT 100
 
 // there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
 #ifdef __arm__
@@ -620,7 +620,7 @@ unsigned hw95pi(unsigned var, unsigned count)
 void memory_calibrate(void)
 {
 	unsigned  count     = 0;
-	unsigned  max_count = 2; //TODO: change this back
+	unsigned  max_count = 100;
 	void *    buffers[MMC_MAX_COUNT];
 	void *    write_buffer;
 	unsigned *dirty_buffer;

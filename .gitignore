@@ -10,3 +10,4 @@ pcmsim.mod.c
 *.o
 *.*.dwo
 .*.o.d
+objdump_pcmsimko

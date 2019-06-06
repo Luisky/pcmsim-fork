@@ -34,7 +34,11 @@ arm:
 export:
 	sudo ./export.sh
 
+.PHONY: objdump_pcm
+objdump_pcmsimko:
+	./objdump_pcm.sh
+
 .PHONY: clean
 clean:
 	rm -rf *.o *.ko *.mod.c Module.* modules.* \
-	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp* *.*.dwo .*.dwo
+	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp* *.*.dwo .*.dwo objdump_pcmsimko

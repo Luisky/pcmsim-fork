@@ -18,6 +18,12 @@ BR_KDIR := $(BR_OUTPUT)build/linux-4.19.36
 # Cross compiler location
 BR_CROSS := $(BR_OUTPUT)host/usr/bin/arm-linux-gnueabihf-
 
+# Flags to compile the module
+# -march=armv7-a needed for armv7 instructions
+# the rest is for NEON instructions
+#KCFLAGS := "KCFLAGS=-mcpu=cortex-a8 -march=armv7-a -mfpu=neon -mfloat-abi=softfp"
+KCFLAGS := "KCFLAGS=-mcpu=cortex-a8 -march=armv7-a"
+
 # PWD is the current working directory and the location of our module
 # source files.
 PWD   := $(shell pwd)
@@ -31,9 +37,8 @@ default:
 .PHONY: arm_export
 arm_export: arm export
 
-# KCFLAGS=-march=armv7-a needed for armv7 instructions
 arm:
-	$(MAKE) KCFLAGS=-march=armv7-a ARCH=arm CROSS_COMPILE=$(BR_CROSS) -C $(BR_KDIR) M=$(PWD) modules
+	$(MAKE) $(KCFLAGS) ARCH=arm CROSS_COMPILE=$(BR_CROSS) -C $(BR_KDIR) M=$(PWD) modules
 
 export:
 	sudo ./export.sh

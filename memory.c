@@ -49,6 +49,8 @@
 // there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
 #ifdef __arm__
 
+#include <asm/neon.h>
+
 unsigned cpu_khz = PCMSIM_CPU_KHZ; //TODO: check if it's relevant !
 
 #endif
@@ -438,8 +440,11 @@ void memory_read(const void *buffer, size_t size)
 	// The argument should be loaded like this anyway, but removing
 	// them breaks the noinline
 	// TODO: find why !
-	asm volatile("Mov R0, %0\n\t" : : "r"(buffer));
-	asm volatile("Mov R1, %0\n\t" : : "r"(size));
+	asm volatile("MOV r0, %0\n\t" : : "r"(buffer));
+	asm volatile("MOV r1, %0\n\t" : : "r"(size));
+	/*asm volatile("WordRead: LDR r3, [r0], #4\n\t"
+		     "SUBS r1, r1, #4\n\t"
+		     "BGE WordRead");*/
 	asm volatile("mov R2, #0\n\t"
 		     " boucle_lec: CMP  R2 , R1\n\t"
 		     " BEQ end_lec\n\t"
@@ -495,16 +500,37 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 {
 #ifdef __arm__
 
+	//__builtin_memcpy(dest, buffer, size); // not faster
+
 	/*printk("size %d, adresse buffer %px, adresse dest %px\n", size, buffer,
 	       dest); // https://lore.kernel.org/patchwork/patch/935610/ */
 
 	// The argument should be loaded like this anyway, but removing
 	// them breaks the noinline
 	// TODO: find why !
-	asm volatile("Mov R0, %0\n\t" : : "r"(dest));
-	asm volatile("Mov R1, %0\n\t" : : "r"(buffer));
-	asm volatile("Mov R2, %0\n\t" : : "r"(size));
-	asm volatile("mov R4, #0\n\t"
+
+	// http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka13544.html
+
+	//kernel_neon_begin();
+	asm volatile("MOV r0, %0\n\t" : : "r"(dest));
+	asm volatile("MOV r1, %0\n\t" : : "r"(buffer));
+	asm volatile("MOV r2, %0\n\t" : : "r"(size));
+	/*asm volatile("NEONCopyPLD: PLD [r1, #0xC0]\n\t"
+		     "VLDM r1!, {d0-d7}\n\t"
+		     "VSTM r0!, {d0-d7}\n\t"
+		     "SUBS r2,r2,#0x40\n\t"
+		     "BGE NEONCopyPLD");*/
+	//kernel_neon_end();
+	asm volatile("WordCopy: LDR r3, [r1], #4\n\t"
+		     "STR r3, [r0], #4\n\t"
+		     "SUBS r2, r2, #4\n\t"
+		     "BGE WordCopy");
+	/*asm volatile("LDMloop: LDMIA r1!, {r3 - r10}\n\t"
+		     "STMIA r0!, {r3 - r10}\n\t"
+		     "SUBS r2, r2, #32\n\t"
+		     "BGE LDMloop\n\t"
+		     "POP {r4 - r10}");*/
+	/*asm volatile("mov R4, #0\n\t"
 		     " boucle_cop: CMP  R4 , R2\n\t"
 		     " BEQ end_cop\n\t"
 		     " LDRB  R3, [R1]\n\t"
@@ -513,7 +539,7 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 		     " ADD R1, R1, #1\n\t"
 		     " ADD R4, R4, #1\n\t"
 		     " B boucle_cop\n\t"
-		     "end_cop:\n\t");
+		     "end_cop:\n\t");*/
 
 	flush();
 
@@ -538,7 +564,8 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 
 #elif __amd64__
 
-	asm("pushq %%rax\n\t"
+	__builtin_memcpy(dest, buffer, size);
+	/*asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
 	    "pushq %%rdi\n\t"
 	    "pushq %%rcx\n\t"
@@ -553,7 +580,24 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	    "popq %%rax\n\t"
 
 	    :
-	    : "S"(buffer), "D"(dest), "c"(size >> 3));
+	    : "S"(buffer), "D"(dest), "c"(size >> 3));*/
+	//TODO: understand why ">> 3" in this case ! (dividing by 8)
+	// could be because we are not copying byte by byte but rather
+	// that we move 8 bytes by 8 bytes thus the size has to be divided
+	// by 8, this makes sense for 32 bit code too ! as >> 2 is a division
+	// by 4, 32 / 4 = 8 bits, I think it's the right explaination
+	// "S" is special for si register
+	// "D" is special for di register
+	// "c" is special for c register
+	// the three of them are used in rep movsq
+	/*
+        ctrl + f : x86 on that page:
+        https://gcc.gnu.org/onlinedocs/gcc/Machine-Constraints.html#Machine-Constraints
+        for rep movsq:
+        https://c9x.me/x86/html/file_module_x86_id_279.html
+        on ASM in GCC:
+        https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
+        */
 
 #endif
 }

@@ -66,7 +66,7 @@
 /**
  * Uncomment to turn the device into a pure ramdisk
  */
-//#define PCMSIM_RAMDISK_ONLY
+#define PCMSIM_RAMDISK_ONLY
 
 /**
  * Uncomment to get the ground truth cache measurements (slow)

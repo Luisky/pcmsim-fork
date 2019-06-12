@@ -7,7 +7,7 @@ fi
 
 rm /run/media/luisky/rootfs/root/pcmsim.ko
 cp pcmsim.ko /run/media/luisky/rootfs/root/pcmsim.ko
-umount /dev/sdb1 /dev/sdb2
+umount /run/media/luisky/boot /run/media/luisky/rootfs
 
 if [ $? = 1 ]
 then
@@ -15,6 +15,6 @@ then
         exit 1
 fi
 
-echo "pcmsim.ko updated on SD card and /dev/sdb1 & /dev/sdb2 unmounted"
+echo "pcmsim.ko updated on SD card, boot & rootfs partitions unmounted"
 
 exit 0

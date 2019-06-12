@@ -44,13 +44,12 @@
 #define __PCMSIM_MEM_NO_EXTERN
 #include "memory.h"
 #include "util.h"
-
-#define MMC_MAX_COUNT 100
+#include "config.h"
 
 // there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
 #ifdef __arm__
 
-unsigned cpu_khz = 300000;
+unsigned cpu_khz = PCMSIM_CPU_KHZ; //TODO: check if it's relevant !
 
 #endif
 
@@ -62,22 +61,26 @@ unsigned memory_time_l2_threshold = 0;
 
 /**
  * The threshold per number of sectors below which we can assume cached reads
+ * * Used in pcm.c 
  */
 unsigned memory_time_l2_threshold_copy[PCMSIM_MEM_SECTORS + 1];
 
 /**
  * The threshold per number of sectors below which we can assume cached writes
+ * * Used in pcm.c
  */
 unsigned memory_time_l2_threshold_copy_write[2 /* 0 = uncached read */]
 					    [PCMSIM_MEM_SECTORS + 1];
 
 /**
  * The threshold per number of sectors above which we consider memory_time_l2_threshold_copy_write[0][?]
+ * * Used in pcm.c
  */
 unsigned memory_time_l2_threshold_copy_write_lo[PCMSIM_MEM_SECTORS + 1];
 
 /**
  * The threshold per number of sectors for cached reads and uncached writes + write-back
+ * * Both Used in pcm.c
  */
 unsigned memory_time_l2_threshold_copy_cb_lo[PCMSIM_MEM_SECTORS + 1];
 unsigned memory_time_l2_threshold_copy_cb_hi[PCMSIM_MEM_SECTORS + 1];
@@ -90,6 +93,7 @@ unsigned memory_overhead_was_cached[2 /* 0 = uncached, 1 = cached */]
 
 /**
  * The average overhead of memory_read() per number of sectors
+ * * Used in pcm.c
  */
 unsigned memory_overhead_read[2 /* 0 = uncached, 1 = cached */]
 			     [PCMSIM_MEM_SECTORS + 1];
@@ -121,16 +125,6 @@ unsigned memory_okw_overhead_copy[3 /* from */][3 /* to, 2 = uncached+wb */]
 				 [PCMSIM_MEM_SECTORS + 1];
 
 /**
- * DDR version
- */
-unsigned memory_ddr_version = 1;
-
-/**
- * DDR rating
- */
-unsigned memory_ddr_rating = 333;
-
-/**
  * Memory bus speed
  */
 unsigned memory_bus_mhz;
@@ -146,16 +140,9 @@ unsigned memory_bus_scale;
 unsigned memory_row_width = 128;
 
 /**
- * Memory timing information
- */
-unsigned memory_tRCD  = 3;
-unsigned memory_tRP   = 3;
-unsigned memory_tCL10 = 25; /* x 10 */
-
-/**
  * Flush the pipeline
  */
-static __inline__ void flush(void)
+static void __inline__ flush(void)
 {
 #ifdef __arm__
 
@@ -190,6 +177,25 @@ static __inline__ void flush(void)
 #endif
 }
 
+static void __inline__ write_back_flush_internal_caches(void)
+{
+#if defined(__i386__) || defined(__amd64__)
+	asm volatile("wbinvd");
+#elif __arm__
+	asm volatile("Mov R0, #0");
+	asm("MCR p15, 0, R0, c7, c14, 2");
+#endif
+}
+
+static void __inline__ memory_barrier(void)
+{
+#if defined(__i386__) || defined(__amd64__)
+	asm volatile("mfence");
+#elif __arm__
+	asm volatile("ISB");
+#endif
+}
+
 /**
  * Measure the maximum time it takes to read a double-word
  * from each cache line of the given buffer. Return the number
@@ -204,7 +210,7 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 #ifdef __arm__
 
 	unsigned d, f;
-	char     tab[64] = { 0 };
+	char     tab[64] = { 0 }; // taille d'une ligne de cache
 	//l'ARMv7 ne supporte pas le préchargement
 
 	//initialisation du timer
@@ -620,7 +626,7 @@ unsigned hw95pi(unsigned var, unsigned count)
 void memory_calibrate(void)
 {
 	unsigned  count     = 0;
-	unsigned  max_count = 100;
+	unsigned  max_count = MMC_MAX_COUNT;
 	void *    buffers[MMC_MAX_COUNT];
 	void *    write_buffer;
 	unsigned *dirty_buffer;
@@ -647,18 +653,6 @@ void memory_calibrate(void)
 	int      d, i, ok;
 	int      cached;
 
-	//TODO: check why this exists
-
-	/*
-#ifdef __LP64__
-	memory_ddr_version = 2;
-	memory_ddr_rating  = 667;
-	memory_tRCD	= 5;
-	memory_tRP	 = 5;
-	memory_tCL10       = 50;
-#endif
-*/
-
 	// Initialize
 
 	write_buffer = vmalloc(16 * PCMSIM_MEM_SECTORS * 1024);
@@ -676,7 +670,7 @@ void memory_calibrate(void)
 
 	// Memory bus
 
-	memory_bus_mhz = memory_ddr_rating / 2;
+	memory_bus_mhz = PCMSIM_DDR_RATING / 2;
 
 	memory_bus_scale = cpu_khz * 10 / (memory_bus_mhz * 1000);
 	if (memory_bus_scale % 10 > 5)
@@ -687,12 +681,7 @@ void memory_calibrate(void)
 	printk("Etape 0: Initialisations\n"); //TODO: remove this one day
 	for (u = 0; u < max_count; u++) {
 		if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-			asm volatile("wbinvd");
-#elif __arm__
-			asm volatile("Mov R0, #0");
-			asm("MCR p15, 0, R0, c7, c14, 2");
-#endif
+			write_back_flush_internal_caches();
 			s = memory_time_read(buffers[u], 4096);
 			t = memory_time_read(buffers[u], 4096);
 
@@ -732,12 +721,8 @@ void memory_calibrate(void)
 
 		for (u = 0; u < max_count; u++) {
 			if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-				asm volatile("wbinvd");
-#elif __arm__
-				asm volatile("Mov R0, #0");
-				asm volatile("MCR p15, 0, R0, c7, c14, 2");
-#endif
+				write_back_flush_internal_caches();
+
 				s = get_ticks();
 				memory_was_cached(buffers[u], n << 9);
 				s = get_ticks() - s;
@@ -784,24 +769,14 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					s = get_ticks();
 					memory_read(buffers[u], n << 9);
 					s = get_ticks() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("ISB");
-#endif
+					memory_barrier();
 
 					t = get_ticks();
 					memory_read(buffers[u], n << 9);
@@ -869,27 +844,16 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
+
 					s = get_ticks();
 					memory_copy(write_buffer, buffers[u],
 						    n << 9);
 					s = get_ticks() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					memory_read(buffers[u], n << 9);
 					t = get_ticks();
@@ -927,14 +891,8 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -944,14 +902,8 @@ void memory_calibrate(void)
 						    n << 9);
 					s = get_ticks() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					for (t = 0; t < 128 * 1024; t++)
 						dirty_buffer[t] = 0;
@@ -992,25 +944,16 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
+
 					memory_read(write_buffer, n << 9);
 					s = get_ticks();
 					memory_copy(write_buffer, buffers[u],
 						    n << 9);
 					s = get_ticks() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("ISB");
-#endif
+					memory_barrier();
 
 					memory_read(write_buffer, n << 9);
 					t = get_ticks();
@@ -1048,14 +991,9 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
+
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
 
@@ -1082,14 +1020,8 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -1245,14 +1177,8 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					s = get_ticks();
 					memory_read(buffers[u], n << wd_exp);
@@ -1278,8 +1204,9 @@ void memory_calibrate(void)
 		d = s;
 		d /= memory_bus_scale * (PCMSIM_MEM_SECTORS - 1);
 
-		t = memory_tRCD + memory_tRP;
-		t += memory_tCL10 / 10 + (memory_tCL10 % 10 > 0 ? 1 : 0) - 1;
+		t = PCMSIM_DDR_TRCD + PCMSIM_DDR_TRP;
+		t += PCMSIM_DDR_TCLx10 / 10 +
+		     (PCMSIM_DDR_TCLx10 % 10 > 0 ? 1 : 0) - 1;
 
 		// s = the number of row-to-row switches
 
@@ -1329,28 +1256,16 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					s = _rdtsc();
 					memory_copy(write_buffer, buffers[u],
 						    n << 9);
 					s = _rdtsc() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					memory_read(buffers[u], n << 9);
 					t = _rdtsc();
@@ -1440,14 +1355,8 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -1457,14 +1366,8 @@ void memory_calibrate(void)
 						    n << 9);
 					s = _rdtsc() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					for (t = 0; t < 128 * 1024; t++)
 						dirty_buffer[t] = 0;
@@ -1557,14 +1460,8 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					memory_read(write_buffer, n << 9);
 					s = _rdtsc();
@@ -1572,11 +1469,7 @@ void memory_calibrate(void)
 						    n << 9);
 					s = _rdtsc() - s;
 
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("ISB");
-#endif
+					memory_barrier();
 
 					memory_read(write_buffer, n << 9);
 					t = _rdtsc();
@@ -1666,14 +1559,9 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
+
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
 
@@ -1729,14 +1617,8 @@ void memory_calibrate(void)
 
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
-#if defined(__i386__) || defined(__amd64__)
-					asm volatile("wbinvd");
-					asm volatile("mfence");
-#elif __arm__
-					asm volatile("Mov R0, #0");
-					asm("MCR p15, 0, R0, c7, c14, 2");
-					asm volatile("ISB");
-#endif
+					write_back_flush_internal_caches();
+					memory_barrier();
 
 					for (s = 0; s < 128 * 1024; s++)
 						dirty_buffer[s] = 0;
@@ -1812,16 +1694,15 @@ void memory_calibrate(void)
 	printk("  PCMSIM Memory Settings  \n");
 	printk("--------------------------\n");
 	printk("\n");
-	printk("Memory Bus    : %sDDR%c%s%d\n",
-	       memory_ddr_version <= 1 ? " " : "",
-	       memory_ddr_version <= 1 ? '-' : ('0' + memory_ddr_version),
-	       memory_ddr_version <= 1 ? "" : "-", memory_ddr_rating);
-	printk("Memory Width  : %4d bytes\n", memory_row_width);
+	printk("Memory Bus    : %sDDR%c%s%d\n", PCMSIM_DDR_VER <= 1 ? " " : "",
+	       PCMSIM_DDR_VER <= 1 ? '-' : ('0' + PCMSIM_DDR_VER),
+	       PCMSIM_DDR_VER <= 1 ? "" : "-", PCMSIM_DDR_RATING);
+	printk("Memory Width  : %4d bytes\n", PCMSIM_DDR_ROW_WIDTH);
 	printk("Bus Frequency : %4d MHz\n", memory_bus_mhz);
 	printk("Scaling Factor: %4d\n", memory_bus_scale);
 	printk("\n");
-	printk("tRCD          : %4d bus cycles\n", memory_tRCD);
-	printk("tRP           : %4d bus cycles\n", memory_tRP);
+	printk("tRCD          : %4d bus cycles\n", PCMSIM_DDR_TRCD);
+	printk("tRP           : %4d bus cycles\n", PCMSIM_DDR_TRP);
 	printk("\n");
 
 	printk("\n");

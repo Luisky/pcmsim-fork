@@ -9,11 +9,14 @@ pcmsim-y += module.o memory.o pcm.o util.o ramdisk.o
 # the compiled modules.
 KDIR  := /lib/modules/$(shell uname -r)/build
 
-# Added as a test
-BUILDROOT_KDIR := /home/luisky/PCMSIM_STAGE/kernelbuild/buildroot-2019.02.2/output/build/linux-4.19.36
+# Buildroot output path (change this to suit your configuration)
+BR_OUTPUT := /home/luisky/PCMSIM_STAGE/kernelbuild/buildroot-2019.02.2/output/
 
-# Added as a test
-CROSS := /home/luisky/PCMSIM_STAGE/kernelbuild/buildroot-2019.02.2/output/host/usr/bin/arm-linux-gnueabihf-
+# Buildroot Kernel source
+BR_KDIR := $(BR_OUTPUT)build/linux-4.19.36
+
+# Cross compiler location
+BR_CROSS := $(BR_OUTPUT)host/usr/bin/arm-linux-gnueabihf-
 
 # PWD is the current working directory and the location of our module
 # source files.
@@ -28,14 +31,15 @@ default:
 .PHONY: arm_export
 arm_export: arm export
 
+# KCFLAGS=-march=armv7-a needed for armv7 instructions
 arm:
-	$(MAKE) KCFLAGS=-march=armv7-a ARCH=arm CROSS_COMPILE=$(CROSS) -C $(BUILDROOT_KDIR) M=$(PWD) modules
+	$(MAKE) KCFLAGS=-march=armv7-a ARCH=arm CROSS_COMPILE=$(BR_CROSS) -C $(BR_KDIR) M=$(PWD) modules
 
 export:
 	sudo ./export.sh
 
 .PHONY: objdump_pcm
-objdump_pcmsimko:
+objdump_pcm:
 	./objdump_pcm.sh
 
 .PHONY: clean

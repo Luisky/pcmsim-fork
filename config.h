@@ -30,8 +30,28 @@
  * SUCH DAMAGE.
  */
 
+/**
+ * this file contains the constants needed to initialize the module
+ * especially information about memory (DRAM)
+ * 
+ */
+
 #ifndef __PCMSIM_CONFIG_H
 #define __PCMSIM_CONFIG_H
+
+// Used in memory.c
+// CPU frequency
+#define PCMSIM_CPU_KHZ 300000
+// DDR version
+#define PCMSIM_DDR_VER 3
+// DDR rating
+#define PCMSIM_DDR_RATING 800
+// Logical memory row width (bytes per row-to-row advance)
+#define PCMSIM_DDR_ROW_WIDTH 128
+// Memory timing informations
+#define PCMSIM_DDR_TRCD 15
+#define PCMSIM_DDR_TRP 15
+#define PCMSIM_DDR_TCLx10 25
 
 /**
  * Maximum number of sectors the memory system considers

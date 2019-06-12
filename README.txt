@@ -59,11 +59,12 @@ Please make sure to do the following before you use pcmsim:
 
 1. There are some parameters that are currently hard-coded that you would need
 to change to match your specific computer:
-        memory_ddr_version
-        memory_ddr_rating
-        memory_tRCD
-        memory_tRP
-        memory_tCL10 (this is the value of the CL parameter x 10)
+        memory_ddr_version      -> has been moved to config.h PCMSIM_DDR_VER
+        memory_ddr_rating       -> has been moved to config.h PCMSIM_DDR_RATING
+        memory_tRCD             -> has been moved to config.h PCMSIM_DDR_TRCD
+        memory_tRP              -> has been moved to config.h PCMSIM_DDR_TRP
+        (this is the value of the CL parameter x 10)
+        memory_tCL10            -> has been moved to config.h PCMSIM_DDR_TCLx10
 They are defined starting at lines 110 and 563 of memory.c. You should be able
 to lookup these values on data sheets of your RAM modules. There might be a few
 more hard-coded values in memory.c - please look around to make sure.

@@ -41,6 +41,9 @@
 #define PCMSIM_MEM_UNCACHED 0
 #define PCMSIM_MEM_CACHED 1
 
+// Max iterations
+#define MMC_MAX_COUNT 100
+
 #ifndef __PCMSIM_MEM_NO_EXTERN
 
 /**
@@ -92,17 +95,6 @@ extern unsigned memory_bus_mhz;
  */
 extern unsigned memory_bus_scale;
 
-/**
- * Logical memory row width (bytes per row-to-row advance)
- */
-extern unsigned memory_row_width;
-
-/**
- * Memory timing information
- */
-extern unsigned memory_tRCD;
-extern unsigned memory_tRP;
-
 #endif
 
 /**
@@ -131,7 +123,7 @@ int memory_was_cached(const void *buffer, size_t size);
 #if defined(__i386__) || defined(__amd64__)
 void memory_read(const void *buffer, size_t size);
 #elif __arm__
-void memory_read(const void *buffer, size_t size) noinline;
+void noinline memory_read(const void *buffer, size_t size);
 #endif
 
 /**
@@ -141,7 +133,7 @@ void memory_read(const void *buffer, size_t size) noinline;
 #if defined(__i386__) || defined(__amd64__)
 void memory_copy(void *dest, const void *buffer, size_t size);
 #elif __arm__
-void memory_copy(void *dest, const void *buffer, size_t size) noinline;
+void noinline memory_copy(void *dest, const void *buffer, size_t size);
 #endif
 
 #endif

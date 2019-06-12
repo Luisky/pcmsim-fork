@@ -49,13 +49,13 @@
 /**
  * The original PCM timings
  */
-unsigned pcm_org_tRCD = 22;
-unsigned pcm_org_tRP  = 60;
+unsigned pcm_org_tRCD = 22; //TODO: make this configurable
+unsigned pcm_org_tRP  = 60; //TODO: make this configurable
 
 /**
  * The original PCM frequency
  */
-unsigned pcm_org_mhz = 400;
+unsigned pcm_org_mhz = 400; //TODO: make this configurable
 
 /**
  * The extrapolated PCM timings
@@ -74,7 +74,7 @@ unsigned pcm_row_width = 256;
 unsigned pcm_latency[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
 
 /**
- * The PCM delta latency for reading and writing
+ * The PCM delta latency for reading pcm_tRPand writing
  */
 int pcm_latency_delta[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
 
@@ -95,6 +95,7 @@ void pcm_calibrate(void)
 	pcm_tRCD = 10 * pcm_org_tRCD * memory_bus_mhz / pcm_org_mhz;
 	pcm_tRP  = 10 * pcm_org_tRP * memory_bus_mhz / pcm_org_mhz;
 
+	// ARRONDI en gros si c'est au dessus de 0,5 on rajoute 1
 	if (pcm_tRCD % 10 >= 5)
 		pcm_tRCD += 10;
 	if (pcm_tRP % 10 >= 5)
@@ -105,12 +106,12 @@ void pcm_calibrate(void)
 	// Compute the PCM latencies
 
 	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
-		mem_rows = (sectors << 9) / memory_row_width;
+		mem_rows = (sectors << 9) / PCMSIM_DDR_ROW_WIDTH;
 		pcm_rows = (sectors << 9) / pcm_row_width;
 
 		mem_t   = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
-		d_read  = pcm_rows * pcm_tRCD - mem_rows * memory_tRCD;
-		d_write = pcm_rows * pcm_tRP - mem_rows * memory_tRP;
+		d_read  = pcm_rows * pcm_tRCD - mem_rows * PCMSIM_DDR_TRCD;
+		d_write = pcm_rows * pcm_tRP - mem_rows * PCMSIM_DDR_TRP;
 
 		pcm_latency[PCM_READ][sectors] =
 			mem_t + d_read * memory_bus_scale;
@@ -330,7 +331,6 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 
 #ifdef PCMSIM_GROUND_TRUTH
 	cached = memory_was_cached(dest, length);
-	//printk("\n"); //TODO: why this ? remove probably
 #endif
 
 	// Perform the operation
@@ -341,7 +341,6 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		length); // This does mfence, so we do not need pipeline flush
 	after = _rdtsc();
 	T     = after - before;
-	// printk("fin\n\n"); //TODO: remove this too
 
 	// Handle L2 effects
 
@@ -358,7 +357,6 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		cached = (T > memory_time_l2_threshold_copy_write_lo[sectors] &&
 			  T < memory_time_l2_threshold_copy_write[0][sectors]);
 	}
-	// printk("fin\n"); //TODO: remove this
 #endif
 
 	model->stat_writes[cached]++;
@@ -377,21 +375,17 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	if (!(cached && dirty)) {
 		model->budget += pcm_latency_delta[PCM_WRITE][sectors];
 	}
-	// printk("\n"); //TODO: remove this
 #endif
 
 	// Stall
 
-//TODO: check why this was ifndef
-#ifdef PCMSIM_GROUND_TRUTH
+#ifndef PCMSIM_GROUND_TRUTH
 	t = _rdtsc();
 	model->budget -= (int)(t - after);
 	while (model->budget >= (int)overhead_get_ticks) {
 		T = _rdtsc();
 		model->budget -= (int)(T - t);
 		t = T;
-		printk("budget %lu, overhead_get ticks %lu, T %lu, t %lu\n ",
-		       model->budget, overhead_get_ticks, T, t);
 	}
 #endif
 }

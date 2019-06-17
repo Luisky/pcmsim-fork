@@ -491,15 +491,15 @@ void memory_read(const void *buffer, size_t size)
 
 	// taken from /arch/x86/boot/compress/string.c of linux kernel 5.1.9
 
-	int d0, d1;
+	/*int d0, d1;
 	asm volatile("rep ; lodsl\n\t"
 		     "movl %4,%%ecx\n\t"
 		     "rep ; lodsb\n\t"
 		     : "=&c"(d0), "=&S"(d1)
 		     : "0"(size >> 2), "g"(size & 3), "1"(buffer)
-		     : "memory");
+		     : "memory");*/
 
-	/*asm("pushl %%eax\n\t"
+	asm("pushl %%eax\n\t"
 	    "pushl %%esi\n\t"
 	    "pushl %%ecx\n\t"
 
@@ -512,22 +512,22 @@ void memory_read(const void *buffer, size_t size)
 	    "popl %%eax\n\t"
 
 	    :
-	    : "S"(buffer), "c"(size >> 2));*/
+	    : "S"(buffer), "c"(size >> 2));
 
 #elif __amd64__
 
 	// same as mfence for lfence (see the comment in the function below)
 	// taken from /arch/x86/boot/compress/string.c of linux kernel 5.1.9
 
-	long d0, d1;
+	/*long d0, d1;
 	asm volatile("rep ; lodsq\n\t"
 		     "movq %4,%%rcx\n\t"
 		     "rep ; lodsb\n\t"
 		     : "=&c"(d0), "=&S"(d1)
 		     : "0"(size >> 3), "g"(size & 7), "1"(buffer)
-		     : "memory");
+		     : "memory");*/
 
-	/*asm("pushq %%rax\n\t"
+	asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
 	    "pushq %%rcx\n\t"
 
@@ -540,7 +540,7 @@ void memory_read(const void *buffer, size_t size)
 	    "popq %%rax\n\t"
 
 	    :
-	    : "S"(buffer), "c"(size >> 3));*/
+	    : "S"(buffer), "c"(size >> 3));
 
 #endif
 }

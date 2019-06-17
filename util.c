@@ -60,7 +60,6 @@ u64 get_ticks(void)
 	asm volatile("ISB");
 	asm volatile("mrc p15, 0, %0, c9, c13,0" : "=r"(b));
 
-	//printk("get ticks %lu\n", (u64)b * 64); //TODO: remove this if possible
 	return (u64)b * 64;
 
 #endif

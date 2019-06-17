@@ -120,20 +120,12 @@ int memory_was_cached(const void *buffer, size_t size);
  * noinline needed for ARM
  * Read the contents of a buffer
  */
-#if defined(__i386__) || defined(__amd64__)
 void memory_read(const void *buffer, size_t size);
-#elif __arm__
-void noinline memory_read(const void *buffer, size_t size);
-#endif
 
 /**
  * noinline needed for ARM
  * Copy a memory buffer
  */
-#if defined(__i386__) || defined(__amd64__)
 void memory_copy(void *dest, const void *buffer, size_t size);
-#elif __arm__
-void noinline memory_copy(void *dest, const void *buffer, size_t size);
-#endif
 
 #endif

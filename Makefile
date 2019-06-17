@@ -49,5 +49,5 @@ objdump_pcm:
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.ko *.mod.c Module.* modules.* \
-	       *~ .*~ .\#*~ \#*~ .*.cmd .tmp* *.*.dwo .*.dwo objdump_pcmsimko
+	$(RM) -r	*.o *.ko *.mod.c Module.* modules.* *~ .*~ .\#*~ \#*~ .*.cmd \
+				.tmp* *.*.dwo .*.dwo objdump_pcmsimko

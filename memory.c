@@ -40,6 +40,7 @@
 #include <linux/vmalloc.h>
 
 #include <asm/uaccess.h>
+#include <asm/string.h>
 
 #define __PCMSIM_MEM_NO_EXTERN
 #include "memory.h"
@@ -48,8 +49,6 @@
 
 // there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
 #ifdef __arm__
-
-#include <asm/neon.h>
 
 unsigned cpu_khz = PCMSIM_CPU_KHZ; //TODO: check if it's relevant !
 
@@ -435,30 +434,72 @@ void memory_read(const void *buffer, size_t size)
 {
 #ifdef __arm__
 
-	//printk("size %d, adresse buffer %px", size, buffer);
+	// taken from /arch/arm/boot/compress/string.c of linux kernel 5.1.9
+	int		       i = 0;
+	unsigned char *	s = (unsigned char *)buffer;
+	volatile unsigned char x0, x1, x2, x3, x4, x5, x6, x7;
 
-	// The argument should be loaded like this anyway, but removing
-	// them breaks the noinline
-	// TODO: find why !
-	asm volatile("MOV r0, %0\n\t" : : "r"(buffer));
-	asm volatile("MOV r1, %0\n\t" : : "r"(size));
-	/*asm volatile("WordRead: LDR r3, [r0], #4\n\t"
+	for (i = size >> 3; i > 0; i--) {
+		x0 = *s++;
+		x1 = *s++;
+		x2 = *s++;
+		x3 = *s++;
+		x4 = *s++;
+		x5 = *s++;
+		x6 = *s++;
+		x7 = *s++;
+	}
+
+	if (size & 1 << 2) {
+		x0 = *s++;
+		x1 = *s++;
+		x2 = *s++;
+		x3 = *s++;
+	}
+
+	if (size & 1 << 1) {
+		x0 = *s++;
+		x1 = *s++;
+	}
+
+	if (size & 1)
+		x0 = *s++;
+
+		//printk("size %d, adresse buffer %px", size, buffer);
+
+		// The argument should be loaded like this anyway, but removing
+		// them breaks the noinline
+		// TODO: find why !
+		//asm volatile("MOV r0, %0\n\t" : : "r"(buffer));
+		//asm volatile("MOV r1, %0\n\t" : : "r"(size));
+		/*asm volatile("WordRead: LDR r3, [r0], #4\n\t"
 		     "SUBS r1, r1, #4\n\t"
 		     "BGE WordRead");*/
-	asm volatile("mov R2, #0\n\t"
+		/*asm volatile("mov R2, #0\n\t"
 		     " boucle_lec: CMP  R2 , R1\n\t"
 		     " BEQ end_lec\n\t"
 		     " LDRSB  R3, [R0]\n\t"
 		     " ADD R0, R0, #1\n\t"
 		     " ADD R2, R2, #1\n\t"
 		     " B boucle_lec\n\t"
-		     "end_lec:\n\t");
+		     "end_lec:\n\t");*/
 
-	flush();
+		//TODO: restore flush() after testing
+		//flush();
 
 #elif __i386__
 
-	asm("pushl %%eax\n\t"
+	// taken from /arch/x86/boot/compress/string.c of linux kernel 5.1.9
+
+	int d0, d1;
+	asm volatile("rep ; lodsl\n\t"
+		     "movl %4,%%ecx\n\t"
+		     "rep ; lodsb\n\t"
+		     : "=&c"(d0), "=&S"(d1)
+		     : "0"(size >> 2), "g"(size & 3), "1"(buffer)
+		     : "memory");
+
+	/*asm("pushl %%eax\n\t"
 	    "pushl %%esi\n\t"
 	    "pushl %%ecx\n\t"
 
@@ -471,11 +512,22 @@ void memory_read(const void *buffer, size_t size)
 	    "popl %%eax\n\t"
 
 	    :
-	    : "S"(buffer), "c"(size >> 2));
+	    : "S"(buffer), "c"(size >> 2));*/
 
 #elif __amd64__
 
-	asm("pushq %%rax\n\t"
+	// same as mfence for lfence (see the comment in the function below)
+	// taken from /arch/x86/boot/compress/string.c of linux kernel 5.1.9
+
+	long d0, d1;
+	asm volatile("rep ; lodsq\n\t"
+		     "movq %4,%%rcx\n\t"
+		     "rep ; lodsb\n\t"
+		     : "=&c"(d0), "=&S"(d1)
+		     : "0"(size >> 3), "g"(size & 7), "1"(buffer)
+		     : "memory");
+
+	/*asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
 	    "pushq %%rcx\n\t"
 
@@ -488,7 +540,7 @@ void memory_read(const void *buffer, size_t size)
 	    "popq %%rax\n\t"
 
 	    :
-	    : "S"(buffer), "c"(size >> 3));
+	    : "S"(buffer), "c"(size >> 3));*/
 
 #endif
 }
@@ -500,52 +552,20 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 {
 #ifdef __arm__
 
-	//__builtin_memcpy(dest, buffer, size); // not faster
-
 	/*printk("size %d, adresse buffer %px, adresse dest %px\n", size, buffer,
 	       dest); // https://lore.kernel.org/patchwork/patch/935610/ */
-
-	// The argument should be loaded like this anyway, but removing
-	// them breaks the noinline
-	// TODO: find why !
-
 	// http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka13544.html
 
-	//kernel_neon_begin();
-	asm volatile("MOV r0, %0\n\t" : : "r"(dest));
-	asm volatile("MOV r1, %0\n\t" : : "r"(buffer));
-	asm volatile("MOV r2, %0\n\t" : : "r"(size));
-	/*asm volatile("NEONCopyPLD: PLD [r1, #0xC0]\n\t"
-		     "VLDM r1!, {d0-d7}\n\t"
-		     "VSTM r0!, {d0-d7}\n\t"
-		     "SUBS r2,r2,#0x40\n\t"
-		     "BGE NEONCopyPLD");*/
-	//kernel_neon_end();
-	asm volatile("WordCopy: LDR r3, [r1], #4\n\t"
-		     "STR r3, [r0], #4\n\t"
-		     "SUBS r2, r2, #4\n\t"
-		     "BGE WordCopy");
-	/*asm volatile("LDMloop: LDMIA r1!, {r3 - r10}\n\t"
-		     "STMIA r0!, {r3 - r10}\n\t"
-		     "SUBS r2, r2, #32\n\t"
-		     "BGE LDMloop\n\t"
-		     "POP {r4 - r10}");*/
-	/*asm volatile("mov R4, #0\n\t"
-		     " boucle_cop: CMP  R4 , R2\n\t"
-		     " BEQ end_cop\n\t"
-		     " LDRB  R3, [R1]\n\t"
-		     " STRB  R3, [R0]\n\t"
-		     " ADD R0, R0, #1\n\t"
-		     " ADD R1, R1, #1\n\t"
-		     " ADD R4, R4, #1\n\t"
-		     " B boucle_cop\n\t"
-		     "end_cop:\n\t");*/
+	memcpy(dest, buffer, size);
+	//TODO: restore flush() after testing
+	//flush();
 
-	flush();
+#elif __i386__ || __amd64
 
-#elif __i386__
+	memcpy(dest, buffer, size);
 
-	asm("pushl %%eax\n\t"
+	// Used to be #elif __i386__
+	/*asm("pushl %%eax\n\t"
 	    "pushl %%esi\n\t"
 	    "pushl %%edi\n\t"
 	    "pushl %%ecx\n\t"
@@ -560,11 +580,15 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	    "popl %%eax\n\t"
 
 	    :
-	    : "S"(buffer), "D"(dest), "c"(size >> 2));
+	    : "S"(buffer), "D"(dest), "c"(size >> 2));*/
 
-#elif __amd64__
+	// Used to be #elif __amd64__
+	// mfence shouldn't be necessary because of Intel Memory Model
+	// except when dealing with multi-threaded code, which is not the case here
+	// https://preshing.com/20120515/memory-reordering-caught-in-the-act/
 
-	__builtin_memcpy(dest, buffer, size);
+	// kernel memcpy is normally the same as the asm below
+	// https://elixir.bootlin.com/linux/latest/source/arch/x86/boot/compressed/string.c#L28
 	/*asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
 	    "pushq %%rdi\n\t"
@@ -700,10 +724,10 @@ void memory_calibrate(void)
 	// Initialize
 
 	write_buffer = vmalloc(16 * PCMSIM_MEM_SECTORS * 1024);
-	BUG_ON(write_buffer == NULL); // 131,072 KB
+	BUG_ON(write_buffer == NULL); // 131,072 Bytes or 131KB
 
 	dirty_buffer = (unsigned *)vmalloc(sizeof(unsigned) * 4 * 1024 * 1024);
-	BUG_ON(dirty_buffer == NULL); // either 16MB or 32MB
+	BUG_ON(dirty_buffer == NULL); // 16MB
 
 	for (u = 0; u < max_count; u++) {
 		buffers[u] = vmalloc(16 * PCMSIM_MEM_SECTORS *

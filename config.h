@@ -45,7 +45,7 @@
 // DDR version
 #define PCMSIM_DDR_VER 3
 // DDR rating
-#define PCMSIM_DDR_RATING 800
+#define PCMSIM_DDR_RATING 1866 // 600
 // Logical memory row width (bytes per row-to-row advance)
 #define PCMSIM_DDR_ROW_WIDTH 128
 // Memory timing informations
@@ -79,7 +79,7 @@
 //#define PCMSIM_IGNORE_L2
 
 /**
- * Uncomment to check the accuracy of memory_copy()
+ * Uncomment to check the accuracy of   ()
  */
 #define PCMSIM_CHECK_ACCURACY
 

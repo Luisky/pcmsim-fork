@@ -79,7 +79,8 @@ void __always_inline copy_to_pcmsim(struct pcmsim_device *pcmsim,
 		n -= l;
 	}
 #else
-	memory_copy(pcm, src, n);
+	//memory_copy(pcm, src, n);
+	memcpy(pcm, src, n);
 #endif
 }
 
@@ -107,7 +108,8 @@ void __always_inline copy_from_pcmsim(void *dest, struct pcmsim_device *pcmsim,
 		n -= l;
 	}
 #else
-	memory_copy(dest, pcm, n);
+	memcpy(dest, pcm, n);
+	//memory_copy(dest, pcm, n);
 #endif
 }
 
@@ -142,37 +144,27 @@ static int pcmsim_do_bvec(struct pcmsim_device *pcmsim, struct page *page,
 static unsigned int pcmsim_make_request(struct request_queue *q,
 					struct bio *	  bio)
 {
-	//struct block_device *bdev = bio->bi_bdev;
-	struct gendisk *g_disk =
-		bio->bi_disk; // TODO: this doesn't exists anymore, bio doesn't have a struct block_device member anymore
-	struct pcmsim_device *pcmsim =
-		g_disk->private_data; //bdev->bd_disk->private_data;
-	int	    rw;
-	struct bio_vec bvec; // not a pointer anymore
-	sector_t       sector;
-	//int		      i;
-	struct bvec_iter i; // that changed
-	int		 err = -EIO;
-	unsigned	 capacity;
+	struct gendisk *      g_disk = bio->bi_disk;
+	struct pcmsim_device *pcmsim = g_disk->private_data;
+	int		      rw;
+	struct bio_vec	bvec;
+	sector_t	      sector;
+	struct bvec_iter      i;
+	int		      err = -EIO;
+	unsigned	      capacity;
 
 	// Check the device capacity
 
-	sector =
-		bio->bi_iter
-			.bi_sector; // TODO: https://github.com/torvalds/linux/commit/4f024f3797c43cb4b73cd2c50cec728842d0e49e#diff-bd4811706a8d71334f8f07cc135455eb
-	capacity = get_capacity(g_disk); //get_capacity(bdev->bd_disk);
-	if (sector + (bio->bi_iter.bi_size >> SECTOR_SHIFT) >
-	    capacity) // TODO: don't know if it is the bi_iter in bi_size either
+	//https://github.com/torvalds/linux/commit/4f024f3797c43cb4b73cd2c50cec728842d0e49e#diff-bd4811706a8d71334f8f07cc135455eb
+	sector   = bio->bi_iter.bi_sector;
+	capacity = get_capacity(g_disk);
+	if (sector + (bio->bi_iter.bi_size >> SECTOR_SHIFT) > capacity)
 		goto out;
 
 	// Get the request vector
 
-	rw = bio_data_dir(
-		bio); // TODO: https://github.com/torvalds/linux/commit/70246286e94c335b5bea0cbc68a17a96dd620281#diff-3111f0da40015b753bd5e1907f3b3bdb
-	/*if (rw == READA)
-		rw = READ;*/
-
-	// READA was removed in a previous kernel version
+	//https://github.com/torvalds/linux/commit/70246286e94c335b5bea0cbc68a17a96dd620281#diff-3111f0da40015b753bd5e1907f3b3bdb
+	rw = bio_data_dir(bio);
 
 	// Perform each part of a request
 	// https://linux-kernel-labs.github.io/master/labs/block_device_drivers.html#
@@ -210,9 +202,8 @@ static int pcmsim_ioctl(struct block_device *bdev, fmode_t mode,
 static struct block_device_operations pcmsim_fops = {
 	.owner = THIS_MODULE,
 	//https://github.com/torvalds/linux/commit/8a6cfeb6deca3a8fefd639d898b0d163c0b5d368#diff-809b3e9c83514697076510cb1c1fbc73
-	//.locked_ioctl = pcmsim_ioctl,
-	.ioctl =
-		pcmsim_ioctl, // TODO: since BKL (Big Kernel Lock) was struck down I don't know if something else is needed
+	.ioctl = pcmsim_ioctl,
+	// TODO: since BKL (Big Kernel Lock) was struck down I don't know if something else is needed
 	// also there is compat_ioctl in truct block_device_operations
 	// further research will be necessary
 };

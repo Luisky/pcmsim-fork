@@ -69,6 +69,21 @@ static int pcmsim_capacity_mb = 256; // I don't what the code below implies
 module_param(pcmsim_capacity_mb, int, 0);
 MODULE_PARM_DESC(pcmsim_capacity_mb, "Size of each PCM disk in MB");
 
+// latency x10, ex 30: is 3 * 10 so three time slower (no float in kernel)
+static int pcmsim_pcm_latency_write = 30;
+
+module_param(pcmsim_pcm_latency_write, int, 0);
+MODULE_PARM_DESC(
+	pcmsim_pcm_latency_write,
+	"PCM Write Latency for all disk x10 (30: 3 times slower than RAM)");
+
+static int pcmsim_pcm_latency_read = 10;
+
+module_param(pcmsim_pcm_latency_read, int, 0);
+MODULE_PARM_DESC(
+	pcmsim_pcm_latency_read,
+	"PCM Read Latency for all disk x10 (10: same as RAM, 20: 2 times slower)");
+
 /**
  * The list of PCM devices
  */

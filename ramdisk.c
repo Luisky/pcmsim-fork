@@ -79,8 +79,8 @@ void __always_inline copy_to_pcmsim(struct pcmsim_device *pcmsim,
 		n -= l;
 	}
 #else
-	//memory_copy(pcm, src, n);
-	memcpy(pcm, src, n);
+	memory_copy(pcm, src, n);
+	//memcpy(pcm, src, n);
 #endif
 }
 
@@ -108,8 +108,8 @@ void __always_inline copy_from_pcmsim(void *dest, struct pcmsim_device *pcmsim,
 		n -= l;
 	}
 #else
-	memcpy(dest, pcm, n);
-	//memory_copy(dest, pcm, n);
+	//memcpy(dest, pcm, n);
+	memory_copy(dest, pcm, n);
 #endif
 }
 

@@ -560,12 +560,13 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	//TODO: restore flush() after testing
 	//flush();
 
-#elif __i386__ || __amd64
+	/*#elif __i386__ || __amd64
 
-	memcpy(dest, buffer, size);
+	memcpy(dest, buffer, size);*/
 
-	// Used to be #elif __i386__
-	/*asm("pushl %%eax\n\t"
+#elif __i386__
+
+	asm("pushl %%eax\n\t"
 	    "pushl %%esi\n\t"
 	    "pushl %%edi\n\t"
 	    "pushl %%ecx\n\t"
@@ -580,16 +581,16 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	    "popl %%eax\n\t"
 
 	    :
-	    : "S"(buffer), "D"(dest), "c"(size >> 2));*/
+	    : "S"(buffer), "D"(dest), "c"(size >> 2));
 
-	// Used to be #elif __amd64__
+#elif __amd64__
 	// mfence shouldn't be necessary because of Intel Memory Model
 	// except when dealing with multi-threaded code, which is not the case here
 	// https://preshing.com/20120515/memory-reordering-caught-in-the-act/
 
 	// kernel memcpy is normally the same as the asm below
 	// https://elixir.bootlin.com/linux/latest/source/arch/x86/boot/compressed/string.c#L28
-	/*asm("pushq %%rax\n\t"
+	asm("pushq %%rax\n\t"
 	    "pushq %%rsi\n\t"
 	    "pushq %%rdi\n\t"
 	    "pushq %%rcx\n\t"
@@ -604,7 +605,7 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	    "popq %%rax\n\t"
 
 	    :
-	    : "S"(buffer), "D"(dest), "c"(size >> 3));*/
+	    : "S"(buffer), "D"(dest), "c"(size >> 3));
 	//TODO: understand why ">> 3" in this case ! (dividing by 8)
 	// could be because we are not copying byte by byte but rather
 	// that we move 8 bytes by 8 bytes thus the size has to be divided

@@ -45,7 +45,7 @@
 // DDR version
 #define PCMSIM_DDR_VER 3
 // DDR rating
-#define PCMSIM_DDR_RATING 1866 // 600
+#define PCMSIM_DDR_RATING 800 // 1866
 // Logical memory row width (bytes per row-to-row advance)
 #define PCMSIM_DDR_ROW_WIDTH 128
 // Memory timing informations

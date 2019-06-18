@@ -560,10 +560,6 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 	//TODO: restore flush() after testing
 	//flush();
 
-	/*#elif __i386__ || __amd64
-
-	memcpy(dest, buffer, size);*/
-
 #elif __i386__
 
 	asm("pushl %%eax\n\t"

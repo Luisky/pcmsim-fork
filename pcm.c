@@ -251,6 +251,9 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 	//  Add latency to model
 	model->budget += pcm_latency_delta[PCM_READ][sectors];
 
+	// Speaks for itself TODO: change the 0 to a macro
+	model->stat_reads[0]++;
+
 	// Stall
 	t = _rdtsc();
 	model->budget -= (int)(t - after);
@@ -284,6 +287,8 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 
 	// Add latency to model
 	model->budget += pcm_latency_delta[PCM_WRITE][sectors];
+	// Speaks for itself TODO: change the 0 to a macro
+	model->stat_writes[0]++;
 
 	// Stall
 	t = _rdtsc();

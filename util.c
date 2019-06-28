@@ -142,23 +142,3 @@ void util_calibrate(void)
 
 	overhead_get_ticks = t / max_count;
 }
-
-/**
- * Calculate integer square root of a 32-bit integer
- */
-unsigned int sqrt32(unsigned long n)
-{
-	// http://www.codecodex.com/wiki/Calculate_an_integer_square_root#C
-
-	unsigned int c = 0x8000;
-	unsigned int g = 0x8000;
-
-	for (;;) {
-		if (g * g > n)
-			g ^= c;
-		c >>= 1;
-		if (c == 0)
-			return g;
-		g |= c;
-	}
-}

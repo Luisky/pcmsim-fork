@@ -59,9 +59,4 @@ u64 get_ticks(void);
  */
 u64 _rdtsc(void);
 
-/**
- * Calculate integer square root of a 32-bit integer
- */
-unsigned int sqrt32(unsigned long n);
-
 #endif

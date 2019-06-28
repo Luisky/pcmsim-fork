@@ -38,17 +38,15 @@
 
 #include "pcm.h"
 
-#define PCMSIM_MAJOR		231
-#define SECTOR_SHIFT		9
-#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
-#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
-
+#define PCMSIM_MAJOR 231
+#define SECTOR_SHIFT 9
+#define PAGE_SECTORS_SHIFT (PAGE_SHIFT - SECTOR_SHIFT)
+#define PAGE_SECTORS (1 << PAGE_SECTORS_SHIFT)
 
 /**
  * The simulated PCM device with a RAM disk backing store
  */
 struct pcmsim_device {
-	
 	/// The device number
 	int pcmsim_number;
 
@@ -56,29 +54,28 @@ struct pcmsim_device {
 	unsigned pcmsim_capacity;
 
 	/// The backing data store
-	void* pcmsim_data;
+	void *pcmsim_data;
 
 	/// The lock protecting the data store
 	spinlock_t pcmsim_lock;
 
 	/// Request queue
-	struct request_queue* pcmsim_queue;
+	struct request_queue *pcmsim_queue;
 
 	/// Disk
-	struct gendisk* pcmsim_disk;
+	struct gendisk *pcmsim_disk;
 
 	/// The collection of lists the device belongs to
 	struct list_head pcmsim_list;
 
 	/// Additional PCM model data
-	struct pcm_model* pcmsim_model;
+	struct pcm_model *pcmsim_model;
 };
-
 
 /**
  * Allocate the PCM device
  */
-struct pcmsim_device* pcmsim_alloc(int index, unsigned capacity_mb);
+struct pcmsim_device *pcmsim_alloc(int index, unsigned capacity_mb);
 
 /**
  * Free a PCM device

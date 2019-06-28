@@ -42,16 +42,30 @@
 // Used in memory.c
 // CPU frequency
 #define PCMSIM_CPU_KHZ 300000
+
 // DDR version
 #define PCMSIM_DDR_VER 3
+
 // DDR rating
 #define PCMSIM_DDR_RATING 800 // 1866
+
 // Logical memory row width (bytes per row-to-row advance)
 #define PCMSIM_DDR_ROW_WIDTH 128
+
 // Memory timing informations
 #define PCMSIM_DDR_TRCD 15
 #define PCMSIM_DDR_TRP 15
 #define PCMSIM_DDR_TCLx10 25
+
+//PCM logical row width (bytes)
+#define PCMSIM_PCM_ROW_WIDTH 256
+
+// The original PCM timings
+#define PCMSIM_PCM_ORG_TRCD 22
+#define PCMSIM_PCM_ORG_TRP 60
+
+// The original PCM frequency
+#define PCMSIM_PCM_ORG_MHZ 400
 
 /**
  * Maximum number of sectors the memory system considers
@@ -66,7 +80,7 @@
 /**
  * Uncomment to turn the device into a pure ramdisk
  */
-#define PCMSIM_RAMDISK_ONLY
+//#define PCMSIM_RAMDISK_ONLY
 
 /**
  * Uncomment to get the ground truth cache measurements (slow)
@@ -76,11 +90,11 @@
 /**
  * Uncomment to ignore L2 cache effects
  */
-//#define PCMSIM_IGNORE_L2
+#define PCMSIM_IGNORE_L2
 
 /**
- * Uncomment to check the accuracy of   ()
+ * Uncomment to check the accuracy of memory_copy()
  */
-#define PCMSIM_CHECK_ACCURACY
+//#define PCMSIM_CHECK_ACCURACY
 
 #endif

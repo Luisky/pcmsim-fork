@@ -36,17 +36,15 @@
 /**
  * PCM operation codes
  */
-#define PCM_READ	0
-#define PCM_WRITE	1
-
+#define PCM_READ 0
+#define PCM_WRITE 1
 
 /**
  * The PCM model data
  */
 struct pcm_model {
-
 	/// The dirty bits
-	unsigned* dirty;
+	unsigned *dirty;
 
 	/// The cycle budget
 	int budget;
@@ -58,7 +56,6 @@ struct pcm_model {
 	unsigned stat_writes[2 /* cached? */];
 };
 
-
 /**
  * Calibrate the PCM model. This function can be called only after
  * the memory subsystem has been initialized.
@@ -68,21 +65,23 @@ void pcm_calibrate(void);
 /**
  * Allocate PCM model data
  */
-struct pcm_model* pcm_model_allocate(unsigned sectors);
+struct pcm_model *pcm_model_allocate(unsigned sectors);
 
 /**
  * Free PCM model data
  */
-void pcm_model_free(struct pcm_model* model);
+void pcm_model_free(struct pcm_model *model);
 
 /**
  * Perform a PCM read access
  */
-void pcm_read(struct pcm_model* model, void* dest, const void* src, size_t length, sector_t sector);
+void pcm_read(struct pcm_model *model, void *dest, const void *src,
+	      size_t length, sector_t sector);
 
 /**
  * Perform a PCM write access
  */
-void pcm_write(struct pcm_model* model, void* dest, const void* src, size_t length, sector_t sector);
+void pcm_write(struct pcm_model *model, void *dest, const void *src,
+	       size_t length, sector_t sector);
 
 #endif

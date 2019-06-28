@@ -53,6 +53,8 @@
 #include "pcm.h"
 #include "util.h"
 
+//TODO: add all the parameters
+
 /**
  * The maximum number of PCM devices
  */
@@ -64,7 +66,7 @@ MODULE_PARM_DESC(rd_nr, "Maximum number of simulated PCM devices");
 /**
  * Size of each PCM disk in MB
  */
-static int pcmsim_capacity_mb = 256;
+static int pcmsim_capacity_mb = 128;
 
 module_param(pcmsim_capacity_mb, int, 0);
 MODULE_PARM_DESC(pcmsim_capacity_mb, "Size of each PCM disk in MB");
@@ -157,7 +159,7 @@ static int __init pcmsim_init(void)
 #ifdef __arm__
 	int32_t v = 1;
 	v |= 2;
-	v |= 4;
+	v |= 4; // isn't that just 7 ?
 	//v|=8;
 	asm("MCR p15, 0, %0, c9, c14, 0\n\t " ::"r"(1));
 	asm("MCR p15, 0, %0, c9, c14, 2\n\t" ::"r"(v));

@@ -62,15 +62,10 @@ u64 get_ticks(void)
 
 	return (u64)b * 64;
 
-#endif
+// xor a value with itself gives 0
+#elif __i386__ // Flush the pipeline
 
-#if defined(__i386__) || defined(__amd64__)
-
-	unsigned a, d;
-
-	// Flush the pipeline
-
-#ifdef __i386__
+	u64 x;
 
 	asm("pushl %eax\n\t"
 	    "pushl %ebx\n\t"
@@ -83,7 +78,12 @@ u64 get_ticks(void)
 	    "popl %ebx\n\t"
 	    "popl %eax\n\t");
 
+	__asm__ volatile("rdtsc" : "=A"(x));
+	return x;
+
 #elif __amd64__
+
+	u64 a, d;
 
 	asm("pushq %rax\n\t"
 	    "pushq %rbx\n\t"
@@ -96,13 +96,9 @@ u64 get_ticks(void)
 	    "popq %rbx\n\t"
 	    "popq %rax\n\t");
 
-#endif
-
 	// Read the number of ticks
-
-	asm volatile("rdtsc" : "=a"(a), "=d"(d));
-
-	return (((u64)a) | (((u64)d) << 32));
+	__asm__ volatile("rdtsc" : "=a"(a), "=d"(d));
+	return (d << 32) | a;
 
 #endif
 }

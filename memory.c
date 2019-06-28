@@ -349,6 +349,9 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 	// Take the time measurement every 64 bytes (a typical length
 	// of Pentium's L2 cache line)
 
+	// What this code does is it loads 8bytes into rax every 64 bytes
+	// then rbp stores the greatest rtsdc and is finally returned in rax
+
 	// Overhead of cpuid: 200 ticks on Core 2 Duo, 2 GHz
 
 	asm("pushq %%rdi\n\t"
@@ -374,7 +377,7 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 	    "l:\n\t"
 
 	    "lodsq\n\t"
-	    "addq $56, %%rsi\n\t"
+	    "addq $56, %%rsi\n\t" // hypothesis: 56 'cause reg is 8 byte thus 64
 
 	    // Flush the pipeline
 
@@ -624,68 +627,6 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 }
 
 /**
- * Compute sample variance
- */
-unsigned variance(void **buffers, unsigned *data, unsigned count,
-		  unsigned max_count)
-{
-	unsigned u;
-	unsigned mean = 0;
-	unsigned ss   = 0;
-
-	for (u = 0; u < max_count; u++) {
-		if (buffers[u] != NULL) {
-			mean += data[u];
-		}
-	}
-	mean /= count;
-
-	for (u = 0; u < max_count; u++) {
-		if (buffers[u] != NULL) {
-			ss += ((int)data[u] - (int)mean) *
-			      ((int)data[u] - (int)mean);
-		}
-	}
-
-	if (count == 1) {
-		printk("PROBLEM\n");
-		BUG();
-	}
-
-	return ss / (count - 1);
-}
-
-/**
- * Compute the half-width of a 95% confidence interval
- */
-unsigned hw95(unsigned var, unsigned count)
-{
-	WARN_ON(count < 90 || count > 100);
-
-	/*
-	 * So far use the following:
-	 *   t_95,0.975 = 1.985
-	 */
-
-	return (1985 * sqrt32(var / count)) / 1000;
-}
-
-/**
- * Compute the half-width of a 95% prediction interval
- */
-unsigned hw95pi(unsigned var, unsigned count)
-{
-	WARN_ON(count < 90 || count > 100);
-
-	/*
-	 * So far use the following:
-	 *   t_95,0.975 = 1.985
-	 */
-
-	return (1985 * sqrt32(var + var / count)) / 1000;
-}
-
-/**
  * Calibrate the timer to determine whether there was an L2 cache miss or not
  */
 void memory_calibrate(void)
@@ -735,15 +676,16 @@ void memory_calibrate(void)
 
 	// Memory bus
 
+	// logical: the memory freq should be half the rating
 	memory_bus_mhz = PCMSIM_DDR_RATING / 2;
 
+	// the
 	memory_bus_scale = cpu_khz * 10 / (memory_bus_mhz * 1000);
 	if (memory_bus_scale % 10 > 5)
 		memory_bus_scale += 10;
 	memory_bus_scale /= 10;
 
 	// Measure the latencies for cached and uncached reads
-	printk("Etape 0: Initialisations\n"); //TODO: remove this one day
 	for (u = 0; u < max_count; u++) {
 		if (buffers[u] != NULL) {
 			write_back_flush_internal_caches();
@@ -752,7 +694,6 @@ void memory_calibrate(void)
 
 			if (s > 2 * 2000 || t > 2 * 2000) {
 				count--;
-				//kfree(buffers[u]);
 				vfree(buffers[u]);
 				buffers[u] = NULL;
 				continue;
@@ -769,10 +710,10 @@ void memory_calibrate(void)
 
 	printk("count = %d et l2_misses = %d\n", count, l2_misses);
 
-	if (l2_misses <= no_misses + count * 4) {
+	if (l2_misses <= no_misses + count * 4) { // TODO: Why ? how ?
 		printk(KERN_WARNING
 		       "Could not measure the memory access times\n");
-		no_misses = l2_misses / 2;
+		no_misses = l2_misses / 2; //TODO: Is this accurate
 	}
 
 	memory_time_l2_threshold =
@@ -862,17 +803,12 @@ void memory_calibrate(void)
 				}
 			}
 
+			//memory_overhead_read INIT 1
 			memory_overhead_read[PCMSIM_MEM_UNCACHED][n] =
 				l2_misses_total / count;
+			//memory_overhead_read INIT 2
 			memory_overhead_read[PCMSIM_MEM_CACHED][n] =
 				no_misses_total / count;
-
-			/*memory_var_overhead_read[PCMSIM_MEM_UNCACHED][n] =
-				variance(buffers, data_l2_misses, count,
-					 max_count);
-			memory_var_overhead_read[PCMSIM_MEM_CACHED][n] =
-				variance(buffers, data_no_misses, count,
-					 max_count);*/
 		}
 
 		// Sanity check
@@ -944,11 +880,6 @@ void memory_calibrate(void)
 			memory_overhead_copy[0][0][n] = l2_misses_total / count;
 			memory_overhead_copy[1][0][n] = no_misses_total / count;
 
-			/*memory_var_overhead_copy[0][0][n] = variance(
-				buffers, data_l2_misses, count, max_count);
-			memory_var_overhead_copy[1][0][n] = variance(
-				buffers, data_no_misses, count, max_count);*/
-
 			// Destination is not cached + writeback
 
 			l2_misses_total = 0;
@@ -997,11 +928,6 @@ void memory_calibrate(void)
 			memory_overhead_copy[0][2][n] = l2_misses_total / count;
 			memory_overhead_copy[1][2][n] = no_misses_total / count;
 
-			/*memory_var_overhead_copy[0][2][n] = variance(
-				buffers, data_l2_misses, count, max_count);
-			memory_var_overhead_copy[1][2][n] = variance(
-				buffers, data_no_misses, count, max_count);*/
-
 			// Destination is cached
 
 			l2_misses_total = 0;
@@ -1044,11 +970,6 @@ void memory_calibrate(void)
 			memory_overhead_copy[0][1][n] = l2_misses_total / count;
 			memory_overhead_copy[1][1][n] = no_misses_total / count;
 
-			/*memory_var_overhead_copy[0][1][n] = variance(
-				buffers, data_l2_misses, count, max_count);
-			memory_var_overhead_copy[1][1][n] = variance(
-				buffers, data_no_misses, count, max_count);*/
-
 			// Source is not cached + writeback
 
 			l2_misses_total = 0;
@@ -1077,8 +998,6 @@ void memory_calibrate(void)
 			}
 
 			memory_overhead_copy[2][2][n] = l2_misses_total / count;
-			/*memory_var_overhead_copy[2][2][n] = variance(
-				buffers, data_l2_misses, count, max_count);*/
 
 			l2_misses_total = 0;
 			no_misses_total = 0;
@@ -1107,11 +1026,10 @@ void memory_calibrate(void)
 			}
 
 			memory_overhead_copy[2][1][n] = l2_misses_total / count;
-			/*memory_var_overhead_copy[2][1][n] = variance(
-				buffers, data_l2_misses, count, max_count);*/
 
 			// Threshold - base
 
+			//memory_time_l2_threshold_copy INIT
 			memory_time_l2_threshold_copy[n] =
 				(memory_overhead_copy[0][1][n] +
 				 memory_overhead_copy[1][0][n]) /
@@ -1119,10 +1037,12 @@ void memory_calibrate(void)
 
 			// Threshold - read
 
+			//memory_time_l2_threshold_copy_cb_lo INIT 1
 			memory_time_l2_threshold_copy_cb_lo[n] =
 				(memory_overhead_copy[0][1][n] +
 				 memory_overhead_copy[1][2][n]) /
 				2;
+			//memory_time_l2_threshold_copy_cb_hi INIT 1
 			memory_time_l2_threshold_copy_cb_hi[n] =
 				(memory_overhead_copy[0][0][n] +
 				 memory_overhead_copy[1][2][n]) /
@@ -1130,17 +1050,21 @@ void memory_calibrate(void)
 
 			if (memory_overhead_copy[1][2][n] >
 			    memory_overhead_copy[0][0][n]) {
+				//memory_time_l2_threshold_copy_cb_lo INIT 2
 				memory_time_l2_threshold_copy_cb_lo[n] =
 					(memory_overhead_copy[0][0][n] +
 					 memory_overhead_copy[1][2][n]) /
 					2;
+				//memory_time_l2_threshold_copy_cb_hi INIT 2
 				memory_time_l2_threshold_copy_cb_hi[n] =
 					1000000;
 			}
 
 			if (memory_overhead_copy[1][2][n] <
 			    memory_overhead_copy[0][1][n]) {
+				//memory_time_l2_threshold_copy_cb_lo INIT 3
 				memory_time_l2_threshold_copy_cb_lo[n] = 0;
+				//memory_time_l2_threshold_copy_cb_hi INIT 3
 				memory_time_l2_threshold_copy_cb_hi[n] =
 					(memory_overhead_copy[0][1][n] +
 					 memory_overhead_copy[1][2][n]) /
@@ -1151,7 +1075,9 @@ void memory_calibrate(void)
 				    memory_overhead_copy[2][1][n] &&
 			    memory_overhead_copy[2][1][n] <
 				    memory_overhead_copy[0][1][n]) {
+				//memory_time_l2_threshold_copy_cb_lo INIT 4
 				memory_time_l2_threshold_copy_cb_lo[n] = 0;
+				//memory_time_l2_threshold_copy_cb_hi INIT 4
 				memory_time_l2_threshold_copy_cb_hi[n] =
 					(memory_overhead_copy[2][1][n] +
 					 memory_overhead_copy[1][2][n]) /
@@ -1160,10 +1086,12 @@ void memory_calibrate(void)
 
 			// Threshold - write
 
+			// memory_time_l2_threshold_copy_write INIT 1
 			memory_time_l2_threshold_copy_write[0][n] =
 				(memory_overhead_copy[0][1][n] +
 				 memory_overhead_copy[1][2][n]) /
 				2;
+			// memory_time_l2_threshold_copy_write INIT 2
 			memory_time_l2_threshold_copy_write[1][n] =
 				(memory_overhead_copy[1][1][n] +
 				 memory_overhead_copy[1][0][n]) /
@@ -1173,8 +1101,10 @@ void memory_calibrate(void)
 			     memory_overhead_copy[0][0][n]) /
 			    2;
 			if (s > memory_time_l2_threshold_copy_write[0][n])
+				// memory_time_l2_threshold_copy_write INIT 3
 				memory_time_l2_threshold_copy_write[0][n] = s;
 
+			//memory_time_l2_threshold_copy_write_lo INIT 1
 			memory_time_l2_threshold_copy_write_lo[n] =
 				memory_time_l2_threshold_copy[n];
 			if (memory_overhead_copy[1][2][n] <
@@ -1189,10 +1119,12 @@ void memory_calibrate(void)
 				    memory_overhead_copy[2][1][n] &&
 			    memory_overhead_copy[2][1][n] <
 				    memory_overhead_copy[0][1][n]) {
+				//memory_time_l2_threshold_copy_write_lo INIT 2
 				memory_time_l2_threshold_copy_write_lo[n] =
 					(memory_overhead_copy[2][1][n] +
 					 memory_overhead_copy[1][2][n]) /
 					2;
+				// memory_time_l2_threshold_copy_write INIT 4
 				memory_time_l2_threshold_copy_write[0][n] =
 					(memory_overhead_copy[0][0][n] +
 					 memory_overhead_copy[0][1][n]) /
@@ -1803,30 +1735,7 @@ void memory_calibrate(void)
 		       memory_overhead_copy[2][2][n]);
 	}
 	printk("\n");
-	/*
-	printk("Memory Access - half-widths of 95%% prediction intervals\n");
-	printk("                 rUwU    rUwC      rU    rCwU    rCwC      rC\n");
-	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-		printk("%4d sector%s %8d%8d%8d%8d%8d%8d\n", n,
-		       n == 1 ? " " : "s",
-		       hw95pi(memory_var_overhead_copy[0][0][n], count),
-		       hw95pi(memory_var_overhead_copy[0][1][n], count),
-		       hw95pi(memory_var_overhead_read[0][n], count),
-		       hw95pi(memory_var_overhead_copy[1][0][n], count),
-		       hw95pi(memory_var_overhead_copy[1][1][n], count),
-		       hw95pi(memory_var_overhead_read[1][n], count));
-	}
-	printk("\n");
-	printk("                 rUwB    rCwB    rBwC    rBwB\n");
-	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-		printk("%4d sector%s %8d%8d%8d%8d\n", n, n == 1 ? " " : "s",
-		       hw95pi(memory_var_overhead_copy[0][2][n], count),
-		       hw95pi(memory_var_overhead_copy[1][2][n], count),
-		       hw95pi(memory_var_overhead_copy[2][1][n], count),
-		       hw95pi(memory_var_overhead_copy[2][2][n], count));
-	}
-	printk("\n");
-*/
+
 	printk("Memory Read is Cached if:\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 		printk("%4d sector%s     T < %4d or (T > %4d and T < %4d)\n", n,

@@ -49,24 +49,19 @@
 /**
  * The original PCM timings
  */
-unsigned pcm_org_tRCD = 22; //TODO: make this configurable
-unsigned pcm_org_tRP  = 60; //TODO: make this configurable
+unsigned pcm_org_tRCD = PCMSIM_PCM_ORG_TRCD; //TODO: make this configurable
+unsigned pcm_org_tRP  = PCMSIM_PCM_ORG_TRP; //TODO: make this configurable
 
 /**
  * The original PCM frequency
  */
-unsigned pcm_org_mhz = 400; //TODO: make this configurable
+unsigned pcm_org_mhz = PCMSIM_PCM_ORG_MHZ; //TODO: make this configurable
 
 /**
  * The extrapolated PCM timings
  */
 unsigned pcm_tRCD;
 unsigned pcm_tRP;
-
-/**
- * PCM logical row width (bytes)
- */
-unsigned pcm_row_width = 256;
 
 /**
  * The PCM latency for reading and writing
@@ -107,7 +102,7 @@ void pcm_calibrate(void)
 
 	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
 		mem_rows = (sectors << 9) / PCMSIM_DDR_ROW_WIDTH;
-		pcm_rows = (sectors << 9) / pcm_row_width;
+		pcm_rows = (sectors << 9) / PCMSIM_PCM_ROW_WIDTH;
 
 		mem_t   = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
 		d_read  = pcm_rows * pcm_tRCD - mem_rows * PCMSIM_DDR_TRCD;
@@ -120,6 +115,7 @@ void pcm_calibrate(void)
 	}
 
 	// Compute the deltas
+	// Why ? mem_t is added above, delta is just the value without mem_t
 
 	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
 		mem_t = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];

@@ -82,19 +82,4 @@
  */
 //#define PCMSIM_RAMDISK_ONLY
 
-/**
- * Uncomment to get the ground truth cache measurements (slow)
- */
-//#define PCMSIM_GROUND_TRUTH
-
-/**
- * Uncomment to ignore L2 cache effects
- */
-#define PCMSIM_IGNORE_L2
-
-/**
- * Uncomment to check the accuracy of memory_copy()
- */
-//#define PCMSIM_CHECK_ACCURACY
-
 #endif

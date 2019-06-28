@@ -235,24 +235,12 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 {
 	unsigned T, before, after;
 	unsigned sectors;
-#ifndef PCMSIM_IGNORE_L2
-	int cached;
-#endif
-#ifndef PCMSIM_GROUND_TRUTH
 	unsigned t;
-#endif
 
 	sectors = length >> SECTOR_SHIFT;
 	WARN_ON(sectors > PCMSIM_MEM_SECTORS);
 
-	// Get the ground truth
-
-#ifdef PCMSIM_GROUND_TRUTH
-	cached = memory_was_cached(src, length);
-#endif
-
 	// Perform the operation
-
 	before = _rdtsc();
 	memory_copy(
 		dest, src,
@@ -260,41 +248,10 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 	after = _rdtsc();
 	T     = after - before;
 
-	// Handle L2 effects
-
-#ifdef PCMSIM_IGNORE_L2
+	//  Add latency to model
 	model->budget += pcm_latency_delta[PCM_READ][sectors];
-#else
-
-	// Classify the time
-
-#ifndef PCMSIM_GROUND_TRUTH
-	cached = T < memory_time_l2_threshold_copy[sectors];
-	if (!cached) {
-		cached = T > memory_time_l2_threshold_copy_cb_lo[sectors] &&
-			 T < memory_time_l2_threshold_copy_cb_hi[sectors];
-	}
-#endif
-
-	model->stat_reads[cached]++;
-
-	// Uncached reads
-
-	if (!cached) {
-		// Time budget
-
-		model->budget += pcm_latency_delta[PCM_READ][sectors];
-
-		// Clear the dirty bit
-
-		model->dirty[sector >> (UNSIGNED_SHIFT + 3)] &=
-			~(1 << (sector & 0x1f));
-	}
-#endif
 
 	// Stall
-
-#ifndef PCMSIM_GROUND_TRUTH
 	t = _rdtsc();
 	model->budget -= (int)(t - after);
 	while (model->budget >= (int)overhead_get_ticks) {
@@ -302,7 +259,6 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 		model->budget -= (int)(T - t);
 		t = T;
 	}
-#endif
 }
 
 /**
@@ -313,24 +269,12 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 {
 	unsigned T, before, after;
 	unsigned sectors;
-#ifndef PCMSIM_IGNORE_L2
-	int cached, dirty;
-#endif
-#ifndef PCMSIM_GROUND_TRUTH
 	unsigned t;
-#endif
 
 	sectors = length >> SECTOR_SHIFT;
 	WARN_ON(sectors > PCMSIM_MEM_SECTORS);
 
-	// Get the ground truth
-
-#ifdef PCMSIM_GROUND_TRUTH
-	cached = memory_was_cached(dest, length);
-#endif
-
 	// Perform the operation
-
 	before = _rdtsc();
 	memory_copy(
 		dest, src,
@@ -338,44 +282,10 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	after = _rdtsc();
 	T     = after - before;
 
-	// Handle L2 effects
-
-#ifdef PCMSIM_IGNORE_L2
+	// Add latency to model
 	model->budget += pcm_latency_delta[PCM_WRITE][sectors];
-#else
-
-	// Classify the time
-
-#ifndef PCMSIM_GROUND_TRUTH
-	if (T < memory_time_l2_threshold_copy[sectors]) {
-		cached = T < memory_time_l2_threshold_copy_write[1][sectors];
-	} else {
-		cached = (T > memory_time_l2_threshold_copy_write_lo[sectors] &&
-			  T < memory_time_l2_threshold_copy_write[0][sectors]);
-	}
-#endif
-
-	model->stat_writes[cached]++;
-
-	// Get the dirty bit
-
-	dirty = (model->dirty[sector >> (UNSIGNED_SHIFT + 3)] &
-		 (1 << (sector & 0x1f))) != 0;
-
-	// Set the dirty bit
-
-	model->dirty[sector >> (UNSIGNED_SHIFT + 3)] |= 1 << (sector & 0x1f);
-
-	// Time
-
-	if (!(cached && dirty)) {
-		model->budget += pcm_latency_delta[PCM_WRITE][sectors];
-	}
-#endif
 
 	// Stall
-
-#ifndef PCMSIM_GROUND_TRUTH
 	t = _rdtsc();
 	model->budget -= (int)(t - after);
 	while (model->budget >= (int)overhead_get_ticks) {
@@ -383,5 +293,4 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 		model->budget -= (int)(T - t);
 		t = T;
 	}
-#endif
 }

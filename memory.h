@@ -52,38 +52,10 @@
 extern unsigned memory_overhead_get_ticks;
 
 /**
- * The threshold per number of sectors below which we can assume cached reads
- */
-extern unsigned memory_time_l2_threshold_copy[PCMSIM_MEM_SECTORS + 1];
-
-/**
- * The threshold per number of sectors above which we consider memory_time_l2_threshold_copy_write[0][?]
- */
-extern unsigned memory_time_l2_threshold_copy_write_lo[PCMSIM_MEM_SECTORS + 1];
-
-/**
- * The threshold per number of sectors below which we can assume cached writes
- */
-extern unsigned memory_time_l2_threshold_copy_write[2][PCMSIM_MEM_SECTORS + 1];
-/* 0 = uncached read */
-
-/**
- * The average overhead of memory_was_cached() per number of sectors
- */
-extern unsigned memory_overhead_was_cached[2][PCMSIM_MEM_SECTORS + 1];
-/* 0 = uncached, 1 = cached */
-
-/**
  * The average overhead of memory_read() per number of sectors
  */
 extern unsigned memory_overhead_read[2][PCMSIM_MEM_SECTORS + 1];
 /* 0 = uncached, 1 = cached */
-
-/**
- * The threshold per number of sectors for cached reads and uncached writes + write-back
- */
-extern unsigned memory_time_l2_threshold_copy_cb_lo[PCMSIM_MEM_SECTORS + 1];
-extern unsigned memory_time_l2_threshold_copy_cb_hi[PCMSIM_MEM_SECTORS + 1];
 
 /**
  * Memory bus speed

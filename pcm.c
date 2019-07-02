@@ -77,49 +77,36 @@ int pcm_latency_delta[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
  * Calibrate the PCM model. This function can be called only after
  * the memory subsystem has been initialized.
  */
-void pcm_calibrate(void)
+void pcm_calibrate(int pcmsim_pcm_lat_factor_write,
+		   int pcmsim_pcm_lat_factor_read)
 {
 	unsigned sectors, n;
-	unsigned mem_rows, pcm_rows, mem_t;
-	unsigned d_read, d_write;
+	unsigned mem_time, d_read, d_write;
 
 	WARN_ON(sizeof(unsigned) != 4);
-
-	// Extrapolate PCM timing information to the current bus frequency
-
-	pcm_tRCD = 10 * pcm_org_tRCD * memory_bus_mhz / pcm_org_mhz;
-	pcm_tRP  = 10 * pcm_org_tRP * memory_bus_mhz / pcm_org_mhz;
-
-	// ARRONDI en gros si c'est au dessus de 0,5 on rajoute 1
-	if (pcm_tRCD % 10 >= 5)
-		pcm_tRCD += 10;
-	if (pcm_tRP % 10 >= 5)
-		pcm_tRP += 10;
-	pcm_tRCD /= 10;
-	pcm_tRP /= 10;
 
 	// Compute the PCM latencies and the deltas
 	// The deltas are useful, the PCM latencies just get printed
 	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
-		// 8 16 24 32 40 48 56 64
-		mem_rows = (sectors << 9) / PCMSIM_DDR_ROW_WIDTH;
-		// 4  8 12 16 20 24 28 32
-		pcm_rows = (sectors << 9) / PCMSIM_PCM_ROW_WIDTH;
+		mem_time = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
 
-		mem_t = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
+		d_read  = mem_time * pcmsim_pcm_lat_factor_read;
+		d_write = mem_time * pcmsim_pcm_lat_factor_write;
 
-		d_read  = pcm_rows * pcm_tRCD - mem_rows * PCMSIM_DDR_TRCD;
-		d_write = pcm_rows * pcm_tRP - mem_rows * PCMSIM_DDR_TRP;
+		if (d_read % 10 >= 5)
+			d_read += 10;
+		if (d_write % 10 >= 5)
+			d_write += 10;
+		d_read /= 10;
+		d_write /= 10;
+
+		pcm_latency_delta[PCM_READ][sectors]  = d_read;
+		pcm_latency_delta[PCM_WRITE][sectors] = d_write;
 
 		pcm_latency_delta[PCM_READ][sectors] =
-			d_read * memory_bus_scale;
+			pcm_latency[PCM_READ][sectors] - mem_time;
 		pcm_latency_delta[PCM_WRITE][sectors] =
-			d_write * memory_bus_scale;
-
-		pcm_latency[PCM_READ][sectors] =
-			mem_t + pcm_latency_delta[PCM_READ][sectors];
-		pcm_latency[PCM_WRITE][sectors] =
-			mem_t + pcm_latency_delta[PCM_WRITE][sectors];
+			pcm_latency[PCM_WRITE][sectors] - mem_time;
 	}
 
 	// Print a report

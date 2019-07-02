@@ -75,18 +75,18 @@ module_param(pcmsim_capacity_mb, int, 0);
 MODULE_PARM_DESC(pcmsim_capacity_mb, "Size of each PCM disk in MB");
 
 // latency x10, ex 30: is 3 * 10 so three time slower (no float in kernel)
-static int pcmsim_pcm_latency_write = 30;
+static int pcmsim_pcm_lat_factor_write = 30;
 
-module_param(pcmsim_pcm_latency_write, int, 0);
+module_param(pcmsim_pcm_lat_factor_write, int, 0);
 MODULE_PARM_DESC(
-	pcmsim_pcm_latency_write,
+	pcmsim_pcm_lat_factor_write,
 	"PCM Write Latency for all disk x10 (30: 3 times slower than RAM)");
 
-static int pcmsim_pcm_latency_read = 10;
+static int pcmsim_pcm_lat_factor_read = 10;
 
-module_param(pcmsim_pcm_latency_read, int, 0);
+module_param(pcmsim_pcm_lat_factor_read, int, 0);
 MODULE_PARM_DESC(
-	pcmsim_pcm_latency_read,
+	pcmsim_pcm_lat_factor_read,
 	"PCM Read Latency for all disk x10 (10: same as RAM, 20: 2 times slower)");
 
 /**
@@ -98,6 +98,31 @@ static LIST_HEAD(pcmsim_devices);
  * The mutex guarding the list of devices
  */
 static DEFINE_MUTEX(pcmsim_devices_mutex);
+
+// PROCFS PART
+static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
+			 loff_t *ppos)
+{
+	int len = 0;
+	printk(KERN_DEBUG "read handler\n");
+	if (*ppos > 0 || count < strlen())
+		return 0;
+	len += sprintf(buf, "irq = %d\n", irq);
+
+	if (copy_to_user(ubuf, buf, len))
+		return -EFAULT;
+	*ppos = len;
+	return len;
+	return 0;
+}
+
+static struct proc_dir_entry *ent;
+
+static struct file_operations myops = {
+	.owner = THIS_MODULE,
+	.read  = proc_read,
+};
+// END OF PROCFS PART
 
 /**
  * Initialize one device

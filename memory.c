@@ -692,9 +692,6 @@ void memory_calibrate(void)
 					memory_read(buffers[u], n << 9);
 					t = get_ticks() - t;
 
-					printk("u: %d -> s = %d t = %d\n", u, s,
-					       t);
-
 					s = s <= overhead_get_ticks ?
 						    0 :
 						    s - overhead_get_ticks;

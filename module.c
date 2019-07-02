@@ -105,12 +105,12 @@ static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 {
 	int len = 0;
 	printk(KERN_DEBUG "read handler\n");
-	if (*ppos > 0 || count < strlen())
+	/*if (*ppos > 0 || count < strlen())
 		return 0;
 	len += sprintf(buf, "irq = %d\n", irq);
 
 	if (copy_to_user(ubuf, buf, len))
-		return -EFAULT;
+		return -EFAULT;*/
 	*ppos = len;
 	return len;
 	return 0;
@@ -198,7 +198,7 @@ static int __init pcmsim_init(void)
 
 	util_calibrate();
 	memory_calibrate(); //TODO: trouver a quoi ca sert
-	pcm_calibrate();
+	pcm_calibrate(pcmsim_pcm_lat_factor_read, pcmsim_pcm_lat_factor_write);
 
 	// Initialize the devices
 

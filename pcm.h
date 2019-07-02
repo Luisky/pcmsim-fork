@@ -50,10 +50,12 @@ struct pcm_model {
 	int budget;
 
 	/// Number of reads
-	unsigned stat_reads[2 /* cached? */];
+	unsigned stat_reads_uncached;
+	unsigned stat_reads_cached;
 
 	/// Number of writes
-	unsigned stat_writes[2 /* cached? */];
+	unsigned stat_writes_uncached;
+	unsigned stat_writes_cached;
 };
 
 /**

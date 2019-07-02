@@ -622,7 +622,7 @@ void memory_calibrate(void)
 	// logical: the memory freq should be half the rating
 	memory_bus_mhz = PCMSIM_DDR_RATING / 2;
 
-	// the
+	// The number of times the cpu is faster than the bus. (2.7Ghz vs 900MZ = 3 for example)
 	memory_bus_scale = cpu_khz * 10 / (memory_bus_mhz * 1000);
 	if (memory_bus_scale % 10 > 5)
 		memory_bus_scale += 10;
@@ -699,6 +699,9 @@ void memory_calibrate(void)
 					t = t <= overhead_get_ticks ?
 						    0 :
 						    t - overhead_get_ticks;
+
+					printk("s = %d\n", s);
+					printk("t = %d\n", t);
 
 					l2_misses_total += s;
 					no_misses_total += t;

@@ -98,32 +98,28 @@ void pcm_calibrate(void)
 	pcm_tRCD /= 10;
 	pcm_tRP /= 10;
 
-	// Compute the PCM latencies
-
+	// Compute the PCM latencies and the deltas
+	// The deltas are useful, the PCM latencies just get printed
 	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
+		// 8 16 24 32 40 48 56 64
 		mem_rows = (sectors << 9) / PCMSIM_DDR_ROW_WIDTH;
+		// 4  8 12 16 20 24 28 32
 		pcm_rows = (sectors << 9) / PCMSIM_PCM_ROW_WIDTH;
 
-		mem_t   = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
+		mem_t = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
+
 		d_read  = pcm_rows * pcm_tRCD - mem_rows * PCMSIM_DDR_TRCD;
 		d_write = pcm_rows * pcm_tRP - mem_rows * PCMSIM_DDR_TRP;
 
-		pcm_latency[PCM_READ][sectors] =
-			mem_t + d_read * memory_bus_scale;
-		pcm_latency[PCM_WRITE][sectors] =
-			mem_t + d_write * memory_bus_scale;
-	}
-
-	// Compute the deltas
-	// Why ? mem_t is added above, delta is just the value without mem_t
-
-	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
-		mem_t = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
-
 		pcm_latency_delta[PCM_READ][sectors] =
-			(int)pcm_latency[PCM_READ][sectors] - (int)mem_t;
+			d_read * memory_bus_scale;
 		pcm_latency_delta[PCM_WRITE][sectors] =
-			(int)pcm_latency[PCM_WRITE][sectors] - (int)mem_t;
+			d_write * memory_bus_scale;
+
+		pcm_latency[PCM_READ][sectors] =
+			mem_t + pcm_latency_delta[PCM_READ][sectors];
+		pcm_latency[PCM_WRITE][sectors] =
+			mem_t + pcm_latency_delta[PCM_WRITE][sectors];
 	}
 
 	// Print a report
@@ -195,18 +191,19 @@ void pcm_model_free(struct pcm_model *model)
 
 	// Compute some statistics
 
-	total_reads  = model->stat_reads[0] + model->stat_reads[1];
-	total_writes = model->stat_writes[0] + model->stat_writes[1];
+	total_reads  = model->stat_reads_uncached + model->stat_reads_cached;
+	total_writes = model->stat_writes_uncached + model->stat_writes_cached;
 
 	cached_reads  = 0;
 	cached_writes = 0;
 
 	if (total_reads > 0) {
-		cached_reads = (10000 * model->stat_reads[1]) / total_reads;
+		cached_reads = (10000 * model->stat_reads_cached) / total_reads;
 	}
 
 	if (total_writes > 0) {
-		cached_writes = (10000 * model->stat_writes[1]) / total_writes;
+		cached_writes =
+			(10000 * model->stat_writes_cached) / total_writes;
 	}
 
 	// Print the statistics
@@ -250,9 +247,13 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 
 	//  Add latency to model
 	model->budget += pcm_latency_delta[PCM_READ][sectors];
-
 	// Speaks for itself TODO: change the 0 to a macro
-	model->stat_reads[0]++;
+	model->stat_reads_uncached++;
+
+	/* Only useful if caching is handled
+	// Clear the dirty bit
+	model->dirty[sector >> (UNSIGNED_SHIFT + 3)] &= ~(1 << (sector & 0x1f));
+        */
 
 	// Stall
 	t = _rdtsc();
@@ -273,6 +274,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	unsigned T, before, after;
 	unsigned sectors;
 	unsigned t;
+	int      cached;
 
 	sectors = length >> SECTOR_SHIFT;
 	WARN_ON(sectors > PCMSIM_MEM_SECTORS);
@@ -288,10 +290,18 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	// Add latency to model
 	model->budget += pcm_latency_delta[PCM_WRITE][sectors];
 	// Speaks for itself TODO: change the 0 to a macro
-	model->stat_writes[0]++;
+	model->stat_writes_uncached++;
+
+	/* Only useful if caching is handled
+        // Get the dirty bit
+	model->dirty = (model->dirty[sector >> (UNSIGNED_SHIFT + 3)] &
+			(1 << (sector & 0x1f))) != 0;
+	// Set the dirty bit
+	model->dirty[sector >> (UNSIGNED_SHIFT + 3)] |= 1 << (sector & 0x1f);
+        */
 
 	// Stall
-	t = _rdtsc();
+	t = _rdtsc(); // get_ticks ?
 	model->budget -= (int)(t - after);
 	while (model->budget >= (int)overhead_get_ticks) {
 		T = _rdtsc();

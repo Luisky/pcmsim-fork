@@ -46,6 +46,9 @@
 #include <linux/vmalloc.h>
 #include <linux/buffer_head.h>
 
+// for writing infos to procfs
+#include <linux/proc_fs.h>
+
 #include <asm/uaccess.h>
 
 #include "memory.h"

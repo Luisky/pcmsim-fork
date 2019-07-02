@@ -677,7 +677,6 @@ void memory_calibrate(void)
 		for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 			l2_misses_total = 0;
 			no_misses_total = 0;
-
 			for (u = 0; u < max_count; u++) {
 				if (buffers[u] != NULL) {
 					write_back_flush_internal_caches();
@@ -693,15 +692,15 @@ void memory_calibrate(void)
 					memory_read(buffers[u], n << 9);
 					t = get_ticks() - t;
 
+					printk("u: %d -> s = %d t = %d\n", u, s,
+					       t);
+
 					s = s <= overhead_get_ticks ?
 						    0 :
 						    s - overhead_get_ticks;
 					t = t <= overhead_get_ticks ?
 						    0 :
 						    t - overhead_get_ticks;
-
-					printk("s = %d\n", s);
-					printk("t = %d\n", t);
 
 					l2_misses_total += s;
 					no_misses_total += t;

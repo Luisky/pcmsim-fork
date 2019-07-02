@@ -857,7 +857,8 @@ void memory_calibrate(void)
 	printk("                 rU        rC\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 		printk("%4d sector%s %8d%8d\n", n, n == 1 ? " " : "s",
-		       memory_overhead_read[0][n], memory_overhead_read[1][n]);
+		       memory_overhead_read[PCMSIM_MEM_UNCACHED][n],
+		       memory_overhead_read[PCMSIM_MEM_CACHED][n]);
 	}
 	printk("\n");
 }

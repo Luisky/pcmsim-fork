@@ -93,12 +93,16 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_write,
 		d_read  = mem_time * pcmsim_pcm_lat_factor_read;
 		d_write = mem_time * pcmsim_pcm_lat_factor_write;
 
+		printk("0 | d_read %d | d_write %d\n", d_read, d_write);
+
 		if (d_read % 10 >= 5)
 			d_read += 10;
 		if (d_write % 10 >= 5)
 			d_write += 10;
 		d_read /= 10;
 		d_write /= 10;
+
+		printk("1 | d_read %d | d_write %d\n", d_read, d_write);
 
 		pcm_latency_delta[PCM_READ][sectors]  = d_read;
 		pcm_latency_delta[PCM_WRITE][sectors] = d_write;

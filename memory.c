@@ -682,15 +682,15 @@ void memory_calibrate(void)
 					write_back_flush_internal_caches();
 					memory_barrier();
 
-					s = get_ticks();
+					s = _rdtsc();
 					memory_read(buffers[u], n << 9);
-					s = get_ticks() - s;
+					s = _rdtsc() - s;
 
 					memory_barrier();
 
-					t = get_ticks();
+					t = _rdtsc();
 					memory_read(buffers[u], n << 9);
-					t = get_ticks() - t;
+					t = _rdtsc() - t;
 
 					s = s <= overhead_get_ticks ?
 						    0 :

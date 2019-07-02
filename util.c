@@ -136,8 +136,8 @@ void util_calibrate(void)
 
 	t = 0;
 	for (u = 0; u < max_count; u++) {
-		s = get_ticks();
-		t += get_ticks() - s;
+		s = _rdtsc();
+		t += _rdtsc() - s;
 	}
 
 	overhead_get_ticks = t / max_count;

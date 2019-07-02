@@ -77,8 +77,8 @@ int pcm_latency_delta[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
  * Calibrate the PCM model. This function can be called only after
  * the memory subsystem has been initialized.
  */
-void pcm_calibrate(int pcmsim_pcm_lat_factor_write,
-		   int pcmsim_pcm_lat_factor_read)
+void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
+		   int pcmsim_pcm_lat_factor_write)
 {
 	unsigned sectors, n;
 	unsigned mem_time, d_read, d_write;
@@ -93,8 +93,6 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_write,
 		d_read  = mem_time * pcmsim_pcm_lat_factor_read;
 		d_write = mem_time * pcmsim_pcm_lat_factor_write;
 
-		printk("0 | d_read %d | d_write %d\n", d_read, d_write);
-
 		if (d_read % 10 >= 5)
 			d_read += 10;
 		if (d_write % 10 >= 5)
@@ -102,10 +100,8 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_write,
 		d_read /= 10;
 		d_write /= 10;
 
-		printk("1 | d_read %d | d_write %d\n", d_read, d_write);
-
-		pcm_latency_delta[PCM_READ][sectors]  = d_read;
-		pcm_latency_delta[PCM_WRITE][sectors] = d_write;
+		pcm_latency[PCM_READ][sectors]  = d_read;
+		pcm_latency[PCM_WRITE][sectors] = d_write;
 
 		pcm_latency_delta[PCM_READ][sectors] =
 			pcm_latency[PCM_READ][sectors] - mem_time;

@@ -99,21 +99,19 @@ static DEFINE_MUTEX(pcmsim_devices_mutex);
 
 // PROCFS PART
 
-#define PROC_BUFFER_SIZE 8192
+#define PROC_BUFFER_SIZE 2048
 int   proc_buffer_len = 0;
 char *proc_buffer     = NULL;
 
 static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 			 loff_t *ppos)
 {
-	if (*ppos > 0 || count < PROC_BUFFER_SIZE) {
-		printk("What the fuck ?\n");
+	if (*ppos > 0 || count < PROC_BUFFER_SIZE)
 		return 0;
-	}
+
 	if (copy_to_user(ubuf, proc_buffer, proc_buffer_len))
 		return -EFAULT;
 
-	printk("Did it work ?\n");
 	*ppos = proc_buffer_len;
 	return proc_buffer_len;
 }
@@ -200,7 +198,9 @@ static int __init pcmsim_init(void)
 
 	ent = proc_create("pcmsim", 0444, NULL, &proc_fops);
 
-	proc_buffer = vmalloc(PROC_BUFFER_SIZE);
+	proc_buffer = kmalloc(PROC_BUFFER_SIZE, GFP_USER);
+	if (!proc_buffer)
+		printk("DON'T USE CAT ON /proc/pcmsim\n");
 
 	util_calibrate();
 	memory_calibrate(proc_buffer, &proc_buffer_len);

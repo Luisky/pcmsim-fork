@@ -599,10 +599,6 @@ void memory_calibrate(char *proc_buf, int *proc_buf_len)
 	if (count == 0)
 		count++;
 
-	*proc_buf_len +=
-		sprintf(proc_buf + *proc_buf_len,
-			"count = %d et l2_misses = %d\n", count, l2_misses);
-
 	if (l2_misses <= no_misses + count * 4) {
 		printk(KERN_WARNING
 		       "Could not measure the memory access times\n");

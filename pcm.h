@@ -63,7 +63,8 @@ struct pcm_model {
  * the memory subsystem has been initialized.
  */
 void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
-		   int pcmsim_pcm_lat_factor_write);
+		   int pcmsim_pcm_lat_factor_write, char *proc_buf,
+		   int *proc_buf_len);
 
 /**
  * Allocate PCM model data

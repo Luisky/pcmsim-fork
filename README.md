@@ -1,6 +1,6 @@
 # PCMSIM
 
-This is a fork of PCMSIM from Peter Macko <pmacko@eecs.harvard.edu>, original
+This is a fork of PCMSIM from Peter Macko (<pmacko@eecs.harvard.edu>)SSSS, original
 code can be found here: https://github.com/pmacko86/pcmsim license is BSD & GPLv3.
 
 We took the original code and modified it so that it would suit our needs, for
@@ -12,6 +12,8 @@ of using something we didn't understand completely we removed it altogether.
 
 The difference lies now in how latencies are calculated, for more information
 check out the documentation in the wiki !
+
+---
 
 Still relevant parts of the former README by the original author on PCMSIM:
 

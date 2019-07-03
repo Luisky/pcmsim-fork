@@ -124,7 +124,6 @@ static int pcmsim_do_bvec(struct pcmsim_device *pcmsim, struct page *page,
 	int   err = 0;
 
 	mem = kmap_atomic(page);
-	//printk(" adresse allouée : %p\n", mem); //TODO: remove this
 
 	if (rw == READ) {
 		copy_from_pcmsim(mem + off, pcmsim, sector, len);
@@ -203,7 +202,7 @@ static struct block_device_operations pcmsim_fops = {
 	.owner = THIS_MODULE,
 	//https://github.com/torvalds/linux/commit/8a6cfeb6deca3a8fefd639d898b0d163c0b5d368#diff-809b3e9c83514697076510cb1c1fbc73
 	.ioctl = pcmsim_ioctl,
-	// TODO: since BKL (Big Kernel Lock) was struck down I don't know if something else is needed
+	// since BKL (Big Kernel Lock) was struck down I don't know if something else is needed
 	// also there is compat_ioctl in truct block_device_operations
 	// further research will be necessary
 };

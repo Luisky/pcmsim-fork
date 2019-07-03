@@ -47,13 +47,6 @@
 #include "util.h"
 #include "config.h"
 
-// there is no tsc.h interface on ARM: https://marc.info/?l=linux-arm-kernel&m=118970523409140&w=2
-#ifdef __arm__
-
-unsigned cpu_khz = PCMSIM_CPU_KHZ; //TODO: check if it's relevant !
-
-#endif
-
 /**
  * The threshold (the number of ticks), below which we can assume
  * no L2 misses in a result of time_read()
@@ -66,21 +59,6 @@ unsigned memory_time_l2_threshold = 0;
  */
 unsigned memory_overhead_read[2 /* 0 = uncached, 1 = cached */]
 			     [PCMSIM_MEM_SECTORS + 1];
-
-/**
- * Memory bus speed
- */
-unsigned memory_bus_mhz;
-
-/**
- * Memory bus scaling factor
- */
-unsigned memory_bus_scale;
-
-/**
- * Logical memory row width (bytes per row-to-row advance)
- */
-unsigned memory_row_width = 128;
 
 /**
  * Flush the pipeline
@@ -148,8 +126,6 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 {
 	unsigned t;
 
-	//TODO: fix this -> mettre la meme boucle que dans copy et read
-
 #ifdef __arm__
 
 	unsigned d, f;
@@ -157,7 +133,7 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 	//l'ARMv7 ne supporte pas le préchargement
 
 	//initialisation du timer
-	d = get_ticks();
+	d = _rdtsc();
 	// Take the time measurement every 64 bytes (a typical length
 	// of Pentium's L2 cache line)
 	//boucle de lecture du tableau
@@ -174,7 +150,7 @@ static unsigned noinline memory_time_read(const void *buffer, size_t size)
 		     :
 		     : "r"(&tab[0]));
 
-	f = get_ticks();
+	f = _rdtsc();
 
 #elif __i386__
 
@@ -410,11 +386,8 @@ void memory_read(const void *buffer, size_t size)
 	if (size & 1)
 		x0 = *s++;
 
-		//printk("size %d, adresse buffer %px", size, buffer);
-
 		// The argument should be loaded like this anyway, but removing
 		// them breaks the noinline
-		// TODO: find why !
 		//asm volatile("MOV r0, %0\n\t" : : "r"(buffer));
 		//asm volatile("MOV r1, %0\n\t" : : "r"(size));
 		/*asm volatile("WordRead: LDR r3, [r0], #4\n\t"
@@ -497,8 +470,7 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 {
 #ifdef __arm__
 
-	/*printk("size %d, adresse buffer %px, adresse dest %px\n", size, buffer,
-	       dest); // https://lore.kernel.org/patchwork/patch/935610/ */
+	// https://lore.kernel.org/patchwork/patch/935610/ */
 	// http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka13544.html
 
 	memcpy(dest, buffer, size);
@@ -547,7 +519,7 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 
 	    :
 	    : "S"(buffer), "D"(dest), "c"(size >> 3));
-	//TODO: understand why ">> 3" in this case ! (dividing by 8)
+	// why: ">> 3" in this case ! (dividing by 8)
 	// could be because we are not copying byte by byte but rather
 	// that we move 8 bytes by 8 bytes thus the size has to be divided
 	// by 8, this makes sense for 32 bit code too ! as >> 2 is a division
@@ -571,7 +543,7 @@ void memory_copy(void *dest, const void *buffer, size_t size)
 /**
  * Calibrate the timer to determine whether there was an L2 cache miss or not
  */
-void memory_calibrate(void)
+void memory_calibrate(char *proc_buf, int *proc_buf_len)
 {
 	unsigned  count     = 0;
 	unsigned  max_count = MMC_MAX_COUNT;
@@ -627,12 +599,13 @@ void memory_calibrate(void)
 	if (count == 0)
 		count++;
 
-	printk("count = %d et l2_misses = %d\n", count, l2_misses);
+	*proc_buf_len += sprintf(proc_buf, "count = %d et l2_misses = %d\n",
+				 count, l2_misses);
 
-	if (l2_misses <= no_misses + count * 4) { // TODO: Why ? how ?
+	if (l2_misses <= no_misses + count * 4) {
 		printk(KERN_WARNING
 		       "Could not measure the memory access times\n");
-		no_misses = l2_misses / 2; //TODO: Is this accurate
+		no_misses = l2_misses / 2;
 	}
 
 	memory_time_l2_threshold =
@@ -668,12 +641,12 @@ void memory_calibrate(void)
 					memory_read(buffers[u], n << 9);
 					t = _rdtsc() - t;
 
-					s = s <= overhead_get_ticks ?
+					s = s <= overhead_rdtsc ?
 						    0 :
-						    s - overhead_get_ticks;
-					t = t <= overhead_get_ticks ?
+						    s - overhead_rdtsc;
+					t = t <= overhead_rdtsc ?
 						    0 :
-						    t - overhead_get_ticks;
+						    t - overhead_rdtsc;
 
 					l2_misses_total += s;
 					no_misses_total += t;
@@ -683,10 +656,8 @@ void memory_calibrate(void)
 				}
 			}
 
-			//memory_overhead_read INIT 1
 			memory_overhead_read[PCMSIM_MEM_UNCACHED][n] =
 				l2_misses_total / count;
-			//memory_overhead_read INIT 2
 			memory_overhead_read[PCMSIM_MEM_CACHED][n] =
 				no_misses_total / count;
 		}
@@ -727,26 +698,25 @@ void memory_calibrate(void)
 	//
 	// Print a report
 	//
-	printk("\n");
-	printk("  PCMSIM Calibration Report  \n");
-	printk("-----------------------------\n");
-	printk("\n");
-	printk("Num. of trials: %4d trials\n", count);
-	printk("get_ticks     : %4d cycles\n", overhead_get_ticks);
-	printk("\n");
-	printk("Cached reads  : %4d cycles\n", no_misses / count);
-	printk("Uncached reads: %4d cycles\n", l2_misses / count);
-	printk("\n");
-	printk("memory_time_l2_threshold : %4d cycles\n",
-	       memory_time_l2_threshold);
-	printk("\n");
 
-	printk("Memory Access\n");
-	printk("                 rU        rC\n");
+	*proc_buf_len +=
+		sprintf(proc_buf, "Num. of trials: %4d trials\n", count);
+	*proc_buf_len +=
+		sprintf(proc_buf, "_rdtsc     : %4d cycles\n", overhead_rdtsc);
+	*proc_buf_len += sprintf(proc_buf, "Cached reads  : %4d cycles\n",
+				 no_misses / count);
+	*proc_buf_len += sprintf(proc_buf, "Uncached reads: %4d cycles\n",
+				 l2_misses / count);
+	*proc_buf_len +=
+		sprintf(proc_buf, "memory_time_l2_threshold : %4d cycles\n",
+			memory_time_l2_threshold);
+	*proc_buf_len += sprintf(proc_buf, "Memory Access\n");
+	*proc_buf_len += sprintf(proc_buf, "                 rU        rC\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-		printk("%4d sector%s %8d%8d\n", n, n == 1 ? " " : "s",
-		       memory_overhead_read[PCMSIM_MEM_UNCACHED][n],
-		       memory_overhead_read[PCMSIM_MEM_CACHED][n]);
+		*proc_buf_len +=
+			sprintf(proc_buf, "%4d sector%s %8d%8d\n", n,
+				n == 1 ? " " : "s",
+				memory_overhead_read[PCMSIM_MEM_UNCACHED][n],
+				memory_overhead_read[PCMSIM_MEM_CACHED][n]);
 	}
-	printk("\n");
 }

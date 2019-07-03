@@ -45,64 +45,9 @@
 #include "util.h"
 
 /**
- * The overhead of get_ticks()
+ * The overhead of _rdtsc()
  */
-unsigned overhead_get_ticks = 0;
-
-/**
- * Return the current value of the processor's tick counter
- */
-u64 get_ticks(void)
-{
-#ifdef __arm__
-
-	unsigned long int a, b, c;
-	// Read the number of ticks
-	asm volatile("ISB");
-	asm volatile("mrc p15, 0, %0, c9, c13,0" : "=r"(b));
-
-	return (u64)b * 64;
-
-// xor a value with itself gives 0
-#elif __i386__ // Flush the pipeline
-
-	u64 x;
-
-	asm("pushl %eax\n\t"
-	    "pushl %ebx\n\t"
-	    "pushl %ecx\n\t"
-	    "pushl %edx\n\t"
-	    "xorl %eax, %eax\n\t"
-	    "cpuid\n\t"
-	    "popl %edx\n\t"
-	    "popl %ecx\n\t"
-	    "popl %ebx\n\t"
-	    "popl %eax\n\t");
-
-	__asm__ volatile("rdtsc" : "=A"(x));
-	return x;
-
-#elif __amd64__
-
-	u64 a, d;
-
-	asm("pushq %rax\n\t"
-	    "pushq %rbx\n\t"
-	    "pushq %rcx\n\t"
-	    "pushq %rdx\n\t"
-	    "xorq %rax, %rax\n\t"
-	    "cpuid\n\t"
-	    "popq %rdx\n\t"
-	    "popq %rcx\n\t"
-	    "popq %rbx\n\t"
-	    "popq %rax\n\t");
-
-	// Read the number of ticks
-	__asm__ volatile("rdtsc" : "=a"(a), "=d"(d));
-	return (d << 32) | a;
-
-#endif
-}
+unsigned overhead_rdtsc = 0;
 
 /**
  * Return the current value of the processor's tick counter, but do not flush the pipeline
@@ -117,10 +62,9 @@ u64 _rdtsc(void)
 
 #elif __arm__
 
-	unsigned long int a, b, c; //TODO: check if those 3 are necessary
-	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(b));
-	//printk("rdtsc %llu\n", (u64)b * 64);
-	return (u64)b * 64;
+	unsigned long int a;
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(a));
+	return (u64)a * 64;
 
 #endif
 }
@@ -141,5 +85,5 @@ void util_calibrate(void)
 		t += _rdtsc() - s;
 	}
 
-	overhead_get_ticks = t / max_count;
+	overhead_rdtsc = t / max_count;
 }

@@ -47,32 +47,17 @@
 #ifndef __PCMSIM_MEM_NO_EXTERN
 
 /**
- * The overhead of get_ticks()
- */
-extern unsigned memory_overhead_get_ticks;
-
-/**
  * The average overhead of memory_read() per number of sectors
  */
 extern unsigned memory_overhead_read[2][PCMSIM_MEM_SECTORS + 1];
 /* 0 = uncached, 1 = cached */
-
-/**
- * Memory bus speed
- */
-extern unsigned memory_bus_mhz;
-
-/**
- * Memory bus scaling factor
- */
-extern unsigned memory_bus_scale;
 
 #endif
 
 /**
  * Calibrate the timer to determine whether there was an L2 cache miss or not
  */
-void memory_calibrate(void);
+void memory_calibrate(char *proc_buf, int *proc_buf_len);
 
 /**
  * Return the current value of the processor's tick counter

@@ -56,8 +56,6 @@
 #include "pcm.h"
 #include "util.h"
 
-//TODO: add all the parameters
-
 /**
  * The maximum number of PCM devices
  */
@@ -100,17 +98,20 @@ static LIST_HEAD(pcmsim_devices);
 static DEFINE_MUTEX(pcmsim_devices_mutex);
 
 // PROCFS PART
+
+#define PROC_BUFFER_SIZE 8192
+int   proc_buffer_len = 0;
+char *proc_buffer     = NULL;
+
 static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 			 loff_t *ppos)
 {
 	int len = 0;
-	printk(KERN_DEBUG "read handler\n");
-	/*if (*ppos > 0 || count < strlen())
+	if (*ppos > 0 || count < PROC_BUFFER_SIZE)
 		return 0;
-	len += sprintf(buf, "irq = %d\n", irq);
 
-	if (copy_to_user(ubuf, buf, len))
-		return -EFAULT;*/
+	if (copy_to_user(ubuf, proc_buffer, proc_buffer_len))
+		return -EFAULT;
 	*ppos = len;
 	return len;
 	return 0;
@@ -118,7 +119,7 @@ static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 
 static struct proc_dir_entry *ent;
 
-static struct file_operations myops = {
+static struct file_operations proc_fops = {
 	.owner = THIS_MODULE,
 	.read  = proc_read,
 };
@@ -196,9 +197,14 @@ static int __init pcmsim_init(void)
 	asm volatile("MCR p15, 0, %0, c9, c12,3\t\n" ::"r"(0x8000000f));
 #endif
 
+	ent = proc_create("pcmsim", 0660, NULL, &proc_fops);
+
+	proc_buffer = vmalloc(PROC_BUFFER_SIZE);
+
 	util_calibrate();
-	memory_calibrate(); //TODO: trouver a quoi ca sert
-	pcm_calibrate(pcmsim_pcm_lat_factor_read, pcmsim_pcm_lat_factor_write);
+	memory_calibrate(proc_buffer, &proc_buffer_len);
+	pcm_calibrate(pcmsim_pcm_lat_factor_read, pcmsim_pcm_lat_factor_write,
+		      proc_buffer, &proc_buffer_len);
 
 	// Initialize the devices
 
@@ -247,6 +253,9 @@ static void __exit pcmsim_exit(void)
 {
 	unsigned long	 range;
 	struct pcmsim_device *pcmsim, *next;
+
+	// procfs
+	proc_remove(ent);
 
 	range = pcmsim_num_devices ? pcmsim_num_devices :
 				     1UL << (MINORBITS - 1);

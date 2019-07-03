@@ -29,13 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-/**
- * this file contains the constants needed to initialize the module
- * especially information about memory (DRAM)
- * 
- */
-
 #ifndef __PCMSIM_CONFIG_H
 #define __PCMSIM_CONFIG_H
 
@@ -44,38 +37,10 @@
 #define __i386__ 0
 #endif
 
-// Used in memory.c
-// CPU frequency
-#define PCMSIM_CPU_KHZ 300000
-
-// DDR version
-#define PCMSIM_DDR_VER 3
-
-// DDR rating
-#define PCMSIM_DDR_RATING 800 // 1866
-
-// Logical memory row width (bytes per row-to-row advance)
-#define PCMSIM_DDR_ROW_WIDTH 128
-
-// Memory timing informations
-#define PCMSIM_DDR_TRCD 15
-#define PCMSIM_DDR_TRP 15
-#define PCMSIM_DDR_TCLx10 25
-
-//PCM logical row width (bytes)
-#define PCMSIM_PCM_ROW_WIDTH 256
-
-// The original PCM timings
-#define PCMSIM_PCM_ORG_TRCD 22
-#define PCMSIM_PCM_ORG_TRP 60
-
-// The original PCM frequency
-#define PCMSIM_PCM_ORG_MHZ 400
-
 /**
  * Maximum number of sectors the memory system considers
  */
-#define PCMSIM_MEM_SECTORS 8 //TODO: search what sector means in this context
+#define PCMSIM_MEM_SECTORS 8
 
 /**
  * Uncomment to disable prefetch during cache tests

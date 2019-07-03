@@ -61,7 +61,8 @@ int pcm_latency_delta[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
  * the memory subsystem has been initialized.
  */
 void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
-		   int pcmsim_pcm_lat_factor_write)
+		   int pcmsim_pcm_lat_factor_write, char *proc_buf,
+		   int *proc_buf_len)
 {
 	unsigned sectors, n;
 	unsigned mem_time, d_read, d_write;
@@ -92,26 +93,23 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
 			pcm_latency[PCM_WRITE][sectors] - mem_time;
 	}
 
-	// Print a report
-
-	printk("\n");
-	printk("  PCMSIM PCM Settings  \n");
-	printk("-----------------------\n");
-	printk("\n");
-	printk("pcm\n");
+	// Procfs
+	*proc_buf_len += sprintf(proc_buf, "pcm\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-		printk("%4d sector%s  : %5d cycles read, %6d cycles write\n", n,
-		       n == 1 ? " " : "s", pcm_latency[PCM_READ][n],
-		       pcm_latency[PCM_WRITE][n]);
+		*proc_buf_len += sprintf(
+			proc_buf,
+			"%4d sector%s  : %5d cycles read, %6d cycles write\n",
+			n, n == 1 ? " " : "s", pcm_latency[PCM_READ][n],
+			pcm_latency[PCM_WRITE][n]);
 	}
-	printk("\n");
-	printk("pcm delta\n");
+	*proc_buf_len += sprintf(proc_buf, "pcm delta\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-		printk("%4d sector%s  : %5d cycles read, %6d cycles write\n", n,
-		       n == 1 ? " " : "s", pcm_latency_delta[PCM_READ][n],
-		       pcm_latency_delta[PCM_WRITE][n]);
+		*proc_buf_len += sprintf(
+			proc_buf,
+			"%4d sector%s  : %5d cycles read, %6d cycles write\n",
+			n, n == 1 ? " " : "s", pcm_latency_delta[PCM_READ][n],
+			pcm_latency_delta[PCM_WRITE][n]);
 	}
-	printk("\n");
 }
 
 /**
@@ -174,16 +172,12 @@ void pcm_model_free(struct pcm_model *model)
 	}
 
 	// Print the statistics
-
-	printk("\n");
 	printk("  PCMSIM Statistics  \n");
 	printk("---------------------\n");
-	printk("\n");
 	printk("Reads         : %6d (%2d.%02d%% cached)\n", total_reads,
 	       cached_reads / 100, cached_reads % 100);
 	printk("Writes        : %6d (%2d.%02d%% cached)\n", total_writes,
 	       cached_writes / 100, cached_writes % 100);
-	printk("\n");
 
 	// Free the data structures
 
@@ -214,7 +208,7 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 
 	//  Add latency to model
 	model->budget += pcm_latency_delta[PCM_READ][sectors];
-	// Speaks for itself TODO: change the 0 to a macro
+	// Speaks for itself
 	model->stat_reads_uncached++;
 
 	/* Only useful if caching is handled
@@ -225,7 +219,7 @@ void pcm_read(struct pcm_model *model, void *dest, const void *src,
 	// Stall
 	t = _rdtsc();
 	model->budget -= (int)(t - after);
-	while (model->budget >= (int)overhead_get_ticks) {
+	while (model->budget >= (int)overhead_rdtsc) {
 		T = _rdtsc();
 		model->budget -= (int)(T - t);
 		t = T;
@@ -256,7 +250,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 
 	// Add latency to model
 	model->budget += pcm_latency_delta[PCM_WRITE][sectors];
-	// Speaks for itself TODO: change the 0 to a macro
+	// Speaks for itself
 	model->stat_writes_uncached++;
 
 	/* Only useful if caching is handled
@@ -270,7 +264,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	// Stall
 	t = _rdtsc(); // get_ticks ?
 	model->budget -= (int)(t - after);
-	while (model->budget >= (int)overhead_get_ticks) {
+	while (model->budget >= (int)overhead_rdtsc) {
 		T = _rdtsc();
 		model->budget -= (int)(T - t);
 		t = T;

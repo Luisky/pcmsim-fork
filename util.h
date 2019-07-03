@@ -38,9 +38,9 @@
 #ifndef __PCMSIM_UTIL_NO_EXTERN
 
 /**
- * The overhead of get_ticks()
+ * The overhead of _rdtsc()
  */
-extern unsigned overhead_get_ticks;
+extern unsigned overhead_rdtsc;
 
 #endif
 
@@ -48,11 +48,6 @@ extern unsigned overhead_get_ticks;
  * Calibrate the timers in utilities
  */
 void util_calibrate(void);
-
-/**
- * Return the current value of the processor's tick counter
- */
-u64 get_ticks(void);
 
 /**
  * Return the current value of the processor's tick counter, but do not flush the pipeline

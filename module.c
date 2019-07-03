@@ -106,13 +106,16 @@ char *proc_buffer     = NULL;
 static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 			 loff_t *ppos)
 {
-	int len = 0;
-	if (*ppos > 0 || count > PROC_BUFFER_SIZE)
+	if (*ppos > 0 || count < PROC_BUFFER_SIZE) {
+		printk("What the fuck ?\n");
 		return 0;
+	}
 	if (copy_to_user(ubuf, proc_buffer, proc_buffer_len))
 		return -EFAULT;
-	*ppos = len;
-	return len;
+
+	printk("Did it work ?\n");
+	*ppos = proc_buffer_len;
+	return proc_buffer_len;
 }
 
 static struct proc_dir_entry *ent;
@@ -195,7 +198,7 @@ static int __init pcmsim_init(void)
 	asm volatile("MCR p15, 0, %0, c9, c12,3\t\n" ::"r"(0x8000000f));
 #endif
 
-	ent = proc_create("pcmsim", 0660, NULL, &proc_fops);
+	ent = proc_create("pcmsim", 0444, NULL, &proc_fops);
 
 	proc_buffer = vmalloc(PROC_BUFFER_SIZE);
 

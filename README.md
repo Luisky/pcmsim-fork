@@ -16,6 +16,7 @@ check out the documentation in the wiki !
 In order to show the different informations about pcmsim you use cat on /proc/pcmsim
 
 $ sudo insmod pcmsim.ko pcm_capacity_mb=128 pcm_lat_write_coef=25 pcm_lat_read_coef=15
+
 will create a file : /dev/pcm0 of size 128MB with read latencies increased by 50% and write
 latencies increased by 150%
 

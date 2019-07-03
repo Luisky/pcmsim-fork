@@ -39,6 +39,11 @@
 #ifndef __PCMSIM_CONFIG_H
 #define __PCMSIM_CONFIG_H
 
+// to remove compiler warnings
+#ifdef __amd64__
+#define __i386__ 0
+#endif
+
 // Used in memory.c
 // CPU frequency
 #define PCMSIM_CPU_KHZ 300000

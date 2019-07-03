@@ -584,26 +584,13 @@ void memory_calibrate(void)
 	unsigned no_misses_total = 0;
 	unsigned l2_misses_total = 0;
 
-	unsigned no_misses_ok_read  = 0;
-	unsigned l2_misses_ok_read  = 0;
-	unsigned no_misses_ok_write = 0;
-	unsigned l2_misses_ok_write = 0;
-
-	unsigned wd_times[PCMSIM_MEM_SECTORS + 1];
-	unsigned wd_exp    = 14;
-	unsigned wd_trials = 16;
-	unsigned wd_i;
-	unsigned wd_temp = 0;
-
 	unsigned data_no_misses[MMC_MAX_COUNT];
 	unsigned data_l2_misses[MMC_MAX_COUNT];
 
 	unsigned u, s, t, n;
-	int      d, i, ok;
-	int      cached;
+	int      i, ok;
 
 	// Initialize
-
 	write_buffer = vmalloc(16 * PCMSIM_MEM_SECTORS * 1024);
 	BUG_ON(write_buffer == NULL); // 131,072 Bytes or 131KB
 
@@ -616,17 +603,6 @@ void memory_calibrate(void)
 		if (buffers[u] != NULL)
 			count++;
 	}
-
-	// Memory bus
-
-	// logical: the memory freq should be half the rating
-	memory_bus_mhz = PCMSIM_DDR_RATING / 2;
-
-	// The number of times the cpu is faster than the bus. (2.7Ghz vs 900MZ = 3 for example)
-	memory_bus_scale = cpu_khz * 10 / (memory_bus_mhz * 1000);
-	if (memory_bus_scale % 10 > 5)
-		memory_bus_scale += 10;
-	memory_bus_scale /= 10;
 
 	// Measure the latencies for cached and uncached reads
 	for (u = 0; u < max_count; u++) {
@@ -737,78 +713,6 @@ void memory_calibrate(void)
 	}
 
 	//
-	// Autodetect logical row width (number of bytes per row-to-row advance)
-	//
-	for (wd_i = 0; wd_i <= wd_trials; wd_i++) {
-		for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
-			l2_misses_total = 0;
-			no_misses_total = 0;
-
-			for (u = 0; u < max_count; u++) {
-				if (buffers[u] != NULL) {
-					write_back_flush_internal_caches();
-					memory_barrier();
-
-					s = get_ticks();
-					memory_read(buffers[u], n << wd_exp);
-					s = get_ticks() - s;
-
-					s = s <= overhead_get_ticks ?
-						    0 :
-						    s - overhead_get_ticks;
-					l2_misses_total += s;
-				}
-			}
-
-			wd_times[n] = l2_misses_total / count;
-		}
-
-		s = 0;
-		for (n = 2; n <= PCMSIM_MEM_SECTORS; n++) {
-			d = ((int)wd_times[n]) - (int)wd_times[n - 1];
-			if (d < 0)
-				d = 0;
-			s += d;
-		}
-		d = s;
-		d /= memory_bus_scale * (PCMSIM_MEM_SECTORS - 1);
-
-		t = PCMSIM_DDR_TRCD + PCMSIM_DDR_TRP;
-		t += PCMSIM_DDR_TCLx10 / 10 +
-		     (PCMSIM_DDR_TCLx10 % 10 > 0 ? 1 : 0) - 1;
-
-		// s = the number of row-to-row switches
-
-		s = 10 * (d - (1 << (wd_exp - 4))) / t;
-		if (s % 10 > 0)
-			s += 10;
-		s /= 10;
-
-		// Round s to the closet power of 2
-
-		i = 0;
-		t = s;
-		while (t > 0) {
-			t >>= 1;
-			i++;
-		}
-		s = 1 << (i - (((s >> (i - 2)) & 1) == 0 ? 1 : 0));
-
-		wd_temp += (1 << wd_exp) / s;
-	}
-
-	s = wd_temp / wd_trials;
-	i = 0;
-	t = s;
-	while (t > 0) {
-		t >>= 1;
-		i++;
-	}
-	s = 1 << (i - (((s >> (i - 2)) & 1) == 0 ? 1 : 0));
-
-	memory_row_width = s;
-
-	//
 	// Cleanup
 	//
 	for (u = 0; u < max_count; u++) {
@@ -824,25 +728,9 @@ void memory_calibrate(void)
 	// Print a report
 	//
 	printk("\n");
-	printk("  PCMSIM Memory Settings  \n");
-	printk("--------------------------\n");
-	printk("\n");
-	printk("Memory Bus    : %sDDR%c%s%d\n", PCMSIM_DDR_VER <= 1 ? " " : "",
-	       PCMSIM_DDR_VER <= 1 ? '-' : ('0' + PCMSIM_DDR_VER),
-	       PCMSIM_DDR_VER <= 1 ? "" : "-", PCMSIM_DDR_RATING);
-	printk("Memory Width  : %4d bytes\n", PCMSIM_DDR_ROW_WIDTH);
-	printk("Bus Frequency : %4d MHz\n", memory_bus_mhz);
-	printk("Scaling Factor: %4d\n", memory_bus_scale);
-	printk("\n");
-	printk("tRCD          : %4d bus cycles\n", PCMSIM_DDR_TRCD);
-	printk("tRP           : %4d bus cycles\n", PCMSIM_DDR_TRP);
-	printk("\n");
-
-	printk("\n");
 	printk("  PCMSIM Calibration Report  \n");
 	printk("-----------------------------\n");
 	printk("\n");
-	printk("CPU Frequency : %4d MHz\n", cpu_khz / 1000);
 	printk("Num. of trials: %4d trials\n", count);
 	printk("get_ticks     : %4d cycles\n", overhead_get_ticks);
 	printk("\n");

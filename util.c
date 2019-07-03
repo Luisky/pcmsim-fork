@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 
 #define __PCMSIM_UTIL_NO_EXTERN
+#include "config.h"
 #include "util.h"
 
 /**

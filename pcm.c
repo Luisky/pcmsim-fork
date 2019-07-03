@@ -47,23 +47,6 @@
 #include "util.h"
 
 /**
- * The original PCM timings
- */
-unsigned pcm_org_tRCD = PCMSIM_PCM_ORG_TRCD; //TODO: make this configurable
-unsigned pcm_org_tRP  = PCMSIM_PCM_ORG_TRP; //TODO: make this configurable
-
-/**
- * The original PCM frequency
- */
-unsigned pcm_org_mhz = PCMSIM_PCM_ORG_MHZ; //TODO: make this configurable
-
-/**
- * The extrapolated PCM timings
- */
-unsigned pcm_tRCD;
-unsigned pcm_tRP;
-
-/**
  * The PCM latency for reading and writing
  */
 unsigned pcm_latency[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
@@ -114,9 +97,6 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
 	printk("\n");
 	printk("  PCMSIM PCM Settings  \n");
 	printk("-----------------------\n");
-	printk("\n");
-	printk("tRCD          : %4d bus cycles\n", pcm_tRCD);
-	printk("tRP           : %4d bus cycles\n", pcm_tRP);
 	printk("\n");
 	printk("pcm\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
@@ -261,7 +241,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
 	unsigned T, before, after;
 	unsigned sectors;
 	unsigned t;
-	int      cached;
+	//int      cached;
 
 	sectors = length >> SECTOR_SHIFT;
 	WARN_ON(sectors > PCMSIM_MEM_SECTORS);

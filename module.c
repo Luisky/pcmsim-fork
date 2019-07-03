@@ -109,12 +109,10 @@ static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 	int len = 0;
 	if (*ppos > 0 || count < PROC_BUFFER_SIZE)
 		return 0;
-
 	if (copy_to_user(ubuf, proc_buffer, proc_buffer_len))
 		return -EFAULT;
 	*ppos = len;
 	return len;
-	return 0;
 }
 
 static struct proc_dir_entry *ent;

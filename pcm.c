@@ -94,18 +94,18 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
 	}
 
 	// Procfs
-	*proc_buf_len += sprintf(proc_buf, "pcm\n");
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len, "pcm\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 		*proc_buf_len += sprintf(
-			proc_buf,
+			proc_buf + *proc_buf_len,
 			"%4d sector%s  : %5d cycles read, %6d cycles write\n",
 			n, n == 1 ? " " : "s", pcm_latency[PCM_READ][n],
 			pcm_latency[PCM_WRITE][n]);
 	}
-	*proc_buf_len += sprintf(proc_buf, "pcm delta\n");
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len, "pcm delta\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 		*proc_buf_len += sprintf(
-			proc_buf,
+			proc_buf + *proc_buf_len,
 			"%4d sector%s  : %5d cycles read, %6d cycles write\n",
 			n, n == 1 ? " " : "s", pcm_latency_delta[PCM_READ][n],
 			pcm_latency_delta[PCM_WRITE][n]);

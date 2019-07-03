@@ -599,8 +599,9 @@ void memory_calibrate(char *proc_buf, int *proc_buf_len)
 	if (count == 0)
 		count++;
 
-	*proc_buf_len += sprintf(proc_buf, "count = %d et l2_misses = %d\n",
-				 count, l2_misses);
+	*proc_buf_len +=
+		sprintf(proc_buf + *proc_buf_len,
+			"count = %d et l2_misses = %d\n", count, l2_misses);
 
 	if (l2_misses <= no_misses + count * 4) {
 		printk(KERN_WARNING
@@ -699,23 +700,26 @@ void memory_calibrate(char *proc_buf, int *proc_buf_len)
 	// Print a report
 	//
 
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len,
+				 "Num. of trials: %4d trials\n", count);
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len,
+				 "_rdtsc     : %4d cycles\n", overhead_rdtsc);
 	*proc_buf_len +=
-		sprintf(proc_buf, "Num. of trials: %4d trials\n", count);
+		sprintf(proc_buf + *proc_buf_len,
+			"Cached reads  : %4d cycles\n", no_misses / count);
 	*proc_buf_len +=
-		sprintf(proc_buf, "_rdtsc     : %4d cycles\n", overhead_rdtsc);
-	*proc_buf_len += sprintf(proc_buf, "Cached reads  : %4d cycles\n",
-				 no_misses / count);
-	*proc_buf_len += sprintf(proc_buf, "Uncached reads: %4d cycles\n",
-				 l2_misses / count);
-	*proc_buf_len +=
-		sprintf(proc_buf, "memory_time_l2_threshold : %4d cycles\n",
-			memory_time_l2_threshold);
-	*proc_buf_len += sprintf(proc_buf, "Memory Access\n");
-	*proc_buf_len += sprintf(proc_buf, "                 rU        rC\n");
+		sprintf(proc_buf + *proc_buf_len,
+			"Uncached reads: %4d cycles\n", l2_misses / count);
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len,
+				 "memory_time_l2_threshold : %4d cycles\n",
+				 memory_time_l2_threshold);
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len, "Memory Access\n");
+	*proc_buf_len += sprintf(proc_buf + *proc_buf_len,
+				 "                 rU        rC\n");
 	for (n = 1; n <= PCMSIM_MEM_SECTORS; n++) {
 		*proc_buf_len +=
-			sprintf(proc_buf, "%4d sector%s %8d%8d\n", n,
-				n == 1 ? " " : "s",
+			sprintf(proc_buf + *proc_buf_len,
+				"%4d sector%s %8d%8d\n", n, n == 1 ? " " : "s",
 				memory_overhead_read[PCMSIM_MEM_UNCACHED][n],
 				memory_overhead_read[PCMSIM_MEM_CACHED][n]);
 	}

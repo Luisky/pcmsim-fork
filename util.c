@@ -77,7 +77,7 @@ void util_calibrate(void)
 	unsigned max_count = 128;
 	unsigned u, s, t;
 
-	// Measure the overhead of get_ticks()
+	// Measure the overhead of _rdtsc()
 
 	t = 0;
 	for (u = 0; u < max_count; u++) {

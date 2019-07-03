@@ -59,32 +59,32 @@
 /**
  * The maximum number of PCM devices
  */
-static int pcmsim_num_devices = 1;
+static int pcm_num_devices = 1;
 
-module_param(pcmsim_num_devices, int, 0);
+module_param(pcm_num_devices, int, 0);
 MODULE_PARM_DESC(rd_nr, "Maximum number of simulated PCM devices");
 
 /**
  * Size of each PCM disk in MB
  */
-static int pcmsim_capacity_mb = 128;
+static int pcm_capacity_mb = 128;
 
-module_param(pcmsim_capacity_mb, int, 0);
-MODULE_PARM_DESC(pcmsim_capacity_mb, "Size of each PCM disk in MB");
+module_param(pcm_capacity_mb, int, 0);
+MODULE_PARM_DESC(pcm_capacity_mb, "Size of each PCM disk in MB");
 
 // latency x10, ex 30: is 3 * 10 so three time slower (no float in kernel)
-static int pcmsim_pcm_lat_factor_write = 30;
+static int pcm_lat_write_coef = 30;
 
-module_param(pcmsim_pcm_lat_factor_write, int, 0);
+module_param(pcm_lat_write_coef, int, 0);
 MODULE_PARM_DESC(
-	pcmsim_pcm_lat_factor_write,
+	pcm_lat_write_coef,
 	"PCM Write Latency for all disk x10 (30: 3 times slower than RAM)");
 
-static int pcmsim_pcm_lat_factor_read = 10;
+static int pcm_lat_read_coef = 10;
 
-module_param(pcmsim_pcm_lat_factor_read, int, 0);
+module_param(pcm_lat_read_coef, int, 0);
 MODULE_PARM_DESC(
-	pcmsim_pcm_lat_factor_read,
+	pcm_lat_read_coef,
 	"PCM Read Latency for all disk x10 (10: same as RAM, 20: 2 times slower)");
 
 /**
@@ -136,7 +136,7 @@ static struct pcmsim_device *pcmsim_init_one(int i)
 			goto out;
 	}
 
-	pcmsim = pcmsim_alloc(i, pcmsim_capacity_mb);
+	pcmsim = pcmsim_alloc(i, pcm_capacity_mb);
 	if (pcmsim) {
 		add_disk(pcmsim->pcmsim_disk);
 		list_add_tail(&pcmsim->pcmsim_list, &pcmsim_devices);
@@ -204,16 +204,16 @@ static int __init pcmsim_init(void)
 
 	util_calibrate();
 	memory_calibrate(proc_buffer, &proc_buffer_len);
-	pcm_calibrate(pcmsim_pcm_lat_factor_read, pcmsim_pcm_lat_factor_write,
-		      proc_buffer, &proc_buffer_len);
+	pcm_calibrate(pcm_lat_read_coef, pcm_lat_write_coef, proc_buffer,
+		      &proc_buffer_len);
 
 	// Initialize the devices
 
 	if (register_blkdev(PCMSIM_MAJOR, "pcmsim"))
 		return -EIO;
 
-	for (i = 0; i < pcmsim_num_devices; i++) {
-		pcmsim = pcmsim_alloc(i, pcmsim_capacity_mb);
+	for (i = 0; i < pcm_num_devices; i++) {
+		pcmsim = pcmsim_alloc(i, pcm_capacity_mb);
 		if (!pcmsim)
 			goto out_free;
 		list_add_tail(&pcmsim->pcmsim_list, &pcmsim_devices);
@@ -225,8 +225,7 @@ static int __init pcmsim_init(void)
 		add_disk(pcmsim->pcmsim_disk);
 	}
 
-	range = pcmsim_num_devices ? pcmsim_num_devices :
-				     1UL << (MINORBITS - 1);
+	range = pcm_num_devices ? pcm_num_devices : 1UL << (MINORBITS - 1);
 	blk_register_region(MKDEV(PCMSIM_MAJOR, 0), range, THIS_MODULE,
 			    pcmsim_probe, NULL, NULL);
 
@@ -258,8 +257,7 @@ static void __exit pcmsim_exit(void)
 	// procfs
 	proc_remove(ent);
 
-	range = pcmsim_num_devices ? pcmsim_num_devices :
-				     1UL << (MINORBITS - 1);
+	range = pcm_num_devices ? pcm_num_devices : 1UL << (MINORBITS - 1);
 
 	list_for_each_entry_safe (pcmsim, next, &pcmsim_devices, pcmsim_list) {
 		pcmsim_del_one(pcmsim);

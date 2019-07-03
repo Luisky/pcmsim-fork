@@ -60,9 +60,8 @@ int pcm_latency_delta[2 /* 0 = read, 1 = write */][PCMSIM_MEM_SECTORS + 1];
  * Calibrate the PCM model. This function can be called only after
  * the memory subsystem has been initialized.
  */
-void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
-		   int pcmsim_pcm_lat_factor_write, char *proc_buf,
-		   int *proc_buf_len)
+void pcm_calibrate(int pcm_lat_read_coef, int pcm_lat_write_coef,
+		   char *proc_buf, int *proc_buf_len)
 {
 	unsigned sectors, n;
 	unsigned mem_time, d_read, d_write;
@@ -74,8 +73,8 @@ void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
 	for (sectors = 1; sectors <= PCMSIM_MEM_SECTORS; sectors++) {
 		mem_time = memory_overhead_read[PCMSIM_MEM_UNCACHED][sectors];
 
-		d_read  = mem_time * pcmsim_pcm_lat_factor_read;
-		d_write = mem_time * pcmsim_pcm_lat_factor_write;
+		d_read  = mem_time * pcm_lat_read_coef;
+		d_write = mem_time * pcm_lat_write_coef;
 
 		if (d_read % 10 >= 5)
 			d_read += 10;
@@ -262,7 +261,7 @@ void pcm_write(struct pcm_model *model, void *dest, const void *src,
         */
 
 	// Stall
-	t = _rdtsc(); // get_ticks ?
+	t = _rdtsc();
 	model->budget -= (int)(t - after);
 	while (model->budget >= (int)overhead_rdtsc) {
 		T = _rdtsc();

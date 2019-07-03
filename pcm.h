@@ -62,9 +62,8 @@ struct pcm_model {
  * Calibrate the PCM model. This function can be called only after
  * the memory subsystem has been initialized.
  */
-void pcm_calibrate(int pcmsim_pcm_lat_factor_read,
-		   int pcmsim_pcm_lat_factor_write, char *proc_buf,
-		   int *proc_buf_len);
+void pcm_calibrate(int pcm_lat_read_coef, int pcm_lat_write_coef,
+		   char *proc_buf, int *proc_buf_len);
 
 /**
  * Allocate PCM model data

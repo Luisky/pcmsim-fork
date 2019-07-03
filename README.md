@@ -13,6 +13,10 @@ of using something we didn't understand completely we removed it altogether.
 The difference lies now in how latencies are calculated, for more information
 check out the documentation in the wiki !
 
+In order to show the different informations about pcmsim you use cat on /proc/pcmsim
+
+$ sudo insmod pcmsim.ko pcm_capacity_mb=128 pcm_lat_write_coef=25 pcm_lat_read_coef=15
+
 ---
 
 Still relevant parts of the former README by the original author on PCMSIM:

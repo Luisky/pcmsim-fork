@@ -60,11 +60,6 @@ extern unsigned memory_overhead_read[2][PCMSIM_MEM_SECTORS + 1];
 void memory_calibrate(char *proc_buf, int *proc_buf_len);
 
 /**
- * Return the current value of the processor's tick counter
- */
-u64 get_ticks(void);
-
-/**
  * Determine whether the given buffer was present in its entirety
  * in the L2 cache before this function has been called. This function
  * loads the buffer to the cache as a part of its function, and in order

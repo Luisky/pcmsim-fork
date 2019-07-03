@@ -107,7 +107,7 @@ static ssize_t proc_read(struct file *file, char __user *ubuf, size_t count,
 			 loff_t *ppos)
 {
 	int len = 0;
-	if (*ppos > 0 || count < PROC_BUFFER_SIZE)
+	if (*ppos > 0 || count > PROC_BUFFER_SIZE)
 		return 0;
 	if (copy_to_user(ubuf, proc_buffer, proc_buffer_len))
 		return -EFAULT;

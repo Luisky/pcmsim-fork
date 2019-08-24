@@ -4,10 +4,10 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/lib/gcc/x86_64-linux-gnu/8/include/",
-                "/usr/src/linux-headers-5.0.0-20-generic/include/",
-                "/usr/src/linux-headers-5.0.0-20-generic/arch/x86/include/",
-                "/usr/src/linux-headers-5.0.0-20-generic/arch/x86/include/generated/"
+                "/usr/lib/gcc/x86_64-pc-linux-gnu/9.1.0/include/",
+                "/usr/src/linux-5.2.9.arch1/include/",
+                "/usr/src/linux-5.2.9.arch1/arch/x86/include/",
+                "/usr/src/linux-5.2.9.arch1/arch/x86/include/generated/"
             ],
             "defines": [
                 "__KERNEL__",
@@ -20,10 +20,10 @@
             "browse": {
                 "path": [
                     "${workspaceFolder}/**",
-                    "/usr/lib/gcc/x86_64-linux-gnu/8/include",
-                    "/usr/src/linux-headers-5.0.0-20-generic/include/",
-                    "/usr/src/linux-headers-5.0.0-20-generic/arch/x86/include/",
-                    "/usr/src/linux-headers-5.0.0-20-generic/arch/x86/include/generated/"
+                    "/usr/lib/gcc/x86_64-pc-linux-gnu/9.1.0/include/",
+                    "/usr/src/linux-5.2.9.arch1/include/",
+                    "/usr/src/linux-5.2.9.arch1/arch/x86/include/",
+                    "/usr/src/linux-5.2.9.arch1/arch/x86/include/generated/"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
